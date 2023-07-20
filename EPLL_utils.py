@@ -75,10 +75,32 @@ def init_global_variables(bs, nb_var, nb_val, device):
     er_rand = torch.from_numpy(np.array(er_rand)).to(device)
     masks_complementary  = torch.where((masks[:,:,None,:]==torch.arange(nb_var, device = device)[None,None,:,None]).sum(axis=3)==0)[2].reshape(bs,nb_masks,-1) # si mask = [1,2], mask_complementary = [3,4,5,6,...], cad tous les indices qui ne sont pas modifiés
 
+def get_random_perms(nb_val, masks, device, nb_rand_perms=20): 
+    bs, nb_masks, mask_width = masks.shape
+    all_perms = torch.zeros((nb_val,nb_val,mask_width),dtype = torch.int8, device = device)
+    if mask_width == 1:
+        all_perms[:,:,0] = torch.arange(nb_val, device = device)[:]
+    if mask_width ==  2:
+        all_perms[:,:,0] = torch.arange(nb_val, device = device)[:,None]
+        all_perms[:,:,1] = torch.arange(nb_val, device = device)[None,:]
+    elif mask_width == 3:
+        all_perms[:,:,0] = torch.arange(nb_val, device = device)[:,None, None]
+        all_perms[:,:,1] = torch.arange(nb_val, device = device)[None,:, None]
+        all_perms[:,:,2] = torch.arange(nb_val, device = device)[None,None,:]
+    all_perms = all_perms.reshape((nb_val)**mask_width,mask_width)
+    nb_tot_perm, mask_width = all_perms.shape
+    rand_perms_indexes = torch.rand((bs,nb_masks,nb_tot_perm),device = device)
+    rand_perms_indexes[:,:,0]=-1 # so that we always select the identity first
+    rand_perms_indexes = rand_perms_indexes.argsort(dim=-1)[:nb_rand_perms]
+
+    rand_perms = all_perms[rand_perms_indexes]
+    return rand_perms
+    
+
     
 #r_ind = get_indexes_torch(y_true, nb_val, masks, r_rand)
-def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100,hints_logit = None):
-    global r_rand, masks, er_rand, masks_complementary
+def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None):
+    #global r_rand, masks, er_rand, masks_complementary
     """
     Compute the total PLL loss over all variables and all batch samples
 
@@ -94,19 +116,20 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100,hints_logit = N
     bs = W.shape[0]
     nb_val = W.shape[3]
 
-    if masks is None:
-        init_global_variables(bs,nb_var,nb_val, device)
 
 
     y_mod = ((y_true-1))[:,None,:].expand(bs,nb_rand_masks,nb_var).clone()
-    rand_masks = torch.randint(0,masks.shape[1],(bs,nb_rand_masks), device = y_true.device)
+    #rand_masks = torch.randint(0,masks.shape[1],(bs,nb_rand_masks), device = y_true.device)
+    rand_indexes = torch.rand((bs, nb_rand_masks, nb_var), device = y_true.device).argsort(dim=-1)
+    masks = rand_indexes[...,:mask_width]
+    masks_complementary = rand_indexes[...,mask_width:]
 
     if nb_neigh != 0:
         # ajoût de la variable regulatrice
         #nb_val = nb_val+1
         Wpad = torch.nn.functional.pad(W,(0,1,0,1))
-        randindexes = torch.rand((bs,nb_rand_masks,nb_var-2), device = device).argsort(dim=-1)[...,:nb_neigh]
-        randindexes = masks_complementary[torch.arange(bs)[:,None,None],rand_masks[:,:,None],randindexes]
+        randindexes = torch.rand((bs,nb_rand_masks,nb_var-mask_width), device = device).argsort(dim=-1)[...,:nb_neigh]
+        randindexes = masks_complementary[torch.arange(bs)[:,None,None],torch.arange(nb_rand_masks)[None,:,None],randindexes]
         y_mod[torch.arange(bs)[:,None,None],torch.arange(nb_rand_masks)[None,:,None],randindexes] = nb_val
         W = Wpad
 
@@ -114,7 +137,8 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100,hints_logit = N
     #if nb_neigh==0:
     #    ny_indices = get_indexes_torch(y_mod,nb_val,masks[np.arange(bs)[:,None],rand_masks],r_rand[np.arange(bs)[:,None],rand_masks], masks_complementary[np.arange(bs)[:,None],rand_masks])
     #else:
-    ny_indices = get_indexes_torch(y_mod,nb_val,masks[np.arange(bs)[:,None],rand_masks],r_rand[np.arange(bs)[:,None],rand_masks],masks_complementary[np.arange(bs)[:,None],rand_masks])
+    rand_perms = get_random_perms(nb_val, masks, device, nb_rand_perms = nb_rand_perms)
+    ny_indices = get_indexes_torch(y_mod,nb_val,masks,rand_perms,masks_complementary)
     tny_indices = ny_indices.int()
     values_for_each_y = W[tny_indices[:,:,:,:,0],tny_indices[:,:,:,:,1],tny_indices[:,:,:,:,2], tny_indices[:,:,:,:,3],tny_indices[:,:,:,:,4]]
     cost_for_each_y = -torch.sum(values_for_each_y, axis = 3)
