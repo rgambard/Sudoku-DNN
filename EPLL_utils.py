@@ -7,9 +7,6 @@ import math
 import timeit
 from random import sample
 
-rng = np.random.default_rng()
-masks = None
-
 def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, epll =False):
     device = y_true.device
     bs, nb_masks, nb_var= y_true.shape
@@ -34,46 +31,21 @@ def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, epll 
     indexes[:,:,:,:,:,0] = masks[:,:,None,:,None]
     indexes[:,:,:,:,:,1] = masks_complementary[:,:,None,None,:]
     indexes[:,:,:,:,:,2] = rand_y[:,:,:,:,None]
-    indexes[:,:,:,:,:,3] = y_true[torch.arange(bs)[:,None,None,None,None],torch.arange(nb_masks)[None,:,None,None,None],masks_complementary[:,:,None,None,:]]
+    indexes[:,:,:,:,:,3] = y_true[torch.arange(bs, device = device)[:,None,None,None,None],torch.arange(nb_masks, device = device)[None,:,None,None,None],masks_complementary[:,:,None,None,:]]
 
     diag_indexes[:,:,:,:,:,0] = masks[:,:,None,:,None]
     diag_indexes[:,:,:,:,:,1] = masks[:,:,None,None,:]
     diag_indexes[:,:,:,:,:,2] = rand_y[:,:,:,:,None]
     diag_indexes[:,:,:,:,:,3] = rand_y[:,:,:,None,:]
 
-    triangular_indices = torch.triu_indices(mask_width, mask_width, 1)
+    triangular_indices = torch.triu_indices(mask_width, mask_width, 1, device=device)
     joint_indexes = diag_indexes[:,:,:,triangular_indices[0],triangular_indices[1]]
     non_joint_indexes = indexes.reshape((bs,nb_masks,nb_rand_y,-1,4))
 
     final_indexes[:,:,:,:,1:] = torch.concatenate((joint_indexes,non_joint_indexes), axis=3)
-    final_indexes[:,:,:,:,0] = torch.arange(bs)[:,None,None,None]
+    final_indexes[:,:,:,:,0] = torch.arange(bs, device = device)[:,None,None,None]
 
     return final_indexes
-
-
-def init_global_variables(bs, nb_var, nb_val, device):
-    global r_rand, masks, er_rand, masks_complementary
-    #y_true = torch.randint(0,9,(bs,nb_var))
-    triu = np.triu_indices(nb_var,1)
-    masks = np.concatenate((triu[0][:,None],triu[1][:,None]),axis=1)
-    masks = np.broadcast_to(masks[None,:,:],(bs,masks.shape[0],2))
-    r_rand = np.zeros((nb_val,nb_val,2),dtype = np.int8)
-    r_rand[:,:,0] = np.arange(nb_val)[:,None]
-    r_rand[:,:,1] = np.arange(nb_val)[None,:]
-    r_rand = r_rand.reshape((nb_val)**2,2)
-    r_rand = np.broadcast_to(r_rand[None,None,:,:], (bs, masks.shape[1], r_rand.shape[0],r_rand.shape[1]))
-    nb_val+=1
-    er_rand = np.zeros((nb_val,nb_val,2),dtype = np.int8)
-    er_rand[:,:,0] = np.arange(nb_val)[:,None]
-    er_rand[:,:,1] = np.arange(nb_val)[None,:]
-    er_rand = er_rand.reshape((nb_val)**2,2)
-    er_rand = np.broadcast_to(er_rand[None,None,:,:], (bs, masks.shape[1], er_rand.shape[0],er_rand.shape[1]))
-
-    masks = torch.from_numpy(np.array(masks)).to(device)
-    bs, nb_masks, mask_width = masks.shape
-    r_rand = torch.from_numpy(np.array(r_rand)).to(device)
-    er_rand = torch.from_numpy(np.array(er_rand)).to(device)
-    masks_complementary  = torch.where((masks[:,:,None,:]==torch.arange(nb_var, device = device)[None,None,:,None]).sum(axis=3)==0)[2].reshape(bs,nb_masks,-1) # si mask = [1,2], mask_complementary = [3,4,5,6,...], cad tous les indices qui ne sont pas modifiés
 
 def get_random_perms(nb_val, masks, device, nb_rand_perms=20): 
     bs, nb_masks, mask_width = masks.shape
@@ -129,8 +101,8 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
         #nb_val = nb_val+1
         Wpad = torch.nn.functional.pad(W,(0,1,0,1))
         randindexes = torch.rand((bs,nb_rand_masks,nb_var-mask_width), device = device).argsort(dim=-1)[...,:nb_neigh]
-        randindexes = masks_complementary[torch.arange(bs)[:,None,None],torch.arange(nb_rand_masks)[None,:,None],randindexes]
-        y_mod[torch.arange(bs)[:,None,None],torch.arange(nb_rand_masks)[None,:,None],randindexes] = nb_val
+        randindexes = masks_complementary[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes]
+        y_mod[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes] = nb_val
         W = Wpad
 
 
