@@ -6,6 +6,7 @@ Sudoku Class
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import Solver
 class Sudoku:
     
     def __init__(self, grid_size, grid = None,sudoku_in_line=None):

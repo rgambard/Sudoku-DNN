@@ -93,17 +93,22 @@ class Net(nn.Module):
         self.MLP.apply(weights_init)  
         
 
-    def forward(self, x, device):
+    def forward(self, x, device, unary = False):
         bs = x.shape[0]
+        """
         pred = self.MLP(x.reshape((-1,self.feature_size)))
 
         pred= pred.reshape(bs, self.nb_var, self.nb_var, self.nb_val, self.nb_val)
         pred=(pred+pred.transpose(1,2).transpose(3,4))/2
         #pred = pred**2
-        unary = pred[:,torch.arange(self.nb_var),torch.arange(self.nb_var)][:,:,torch.arange(9), torch.arange(9)]
+        if unary:
+            unary = pred[:,torch.arange(self.nb_var),torch.arange(self.nb_var)][:,:,torch.arange(self.nb_val), torch.arange(self.nb_val)]
+        else:
+            unary = torch.zeros(bs,self.nb_var,self.nb_val).to(x.device)
         pred[:,torch.arange(self.nb_var),torch.arange(self.nb_var)]=0
         
         return pred, unary
+        """
         bs = x.shape[0]
         t = torch.triu_indices(self.nb_var,self.nb_var,1)
         rr = x[:,t[0],t[1]].reshape(-1,self.feature_size)
@@ -116,10 +121,24 @@ class Net(nn.Module):
         predu = predu[:,:,torch.arange(self.nb_val),torch.arange(self.nb_val)]
 
         pred = pred.reshape(bs,-1,self.nb_val,self.nb_val)
-        r,c = t
         out = torch.zeros(bs,self.nb_var,self.nb_var,self.nb_val,self.nb_val, device = device)
-        out[:,r,c] = pred
+        out[:,t[0],t[1]] = pred
         pred = torch.swapaxes(pred,2,3)
-        out[:,c,r] = pred
+        out[:,t[1],t[0]] = pred
 
         return(out, predu) 
+
+
+class VerySimpleNet(nn.Module):
+    
+    
+    def __init__(self, nb_var, nb_val, nb_feat, device = "cpu"):
+        super().__init__()
+        self.nb_var= nb_var
+        self.nb_val= nb_val
+        self.W = torch.nn.Parameter(torch.rand((nb_var,nb_var,nb_val,nb_val), device = device, requires_grad=True))
+
+    def forward(self, x, device, unary = False):
+        bs = x.shape[0]
+        pred = self.W[None,...].expand(bs,*self.W.shape)
+        return pred, torch.Tensor([0,1])

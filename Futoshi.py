@@ -31,7 +31,7 @@ class Futoshi :
                 i=self.grid_size*y1+x1
                 cost+=unary[i,self.grid[y1,x1]-1]
                 for x2 in range(self.grid_size):
-                    for y2 in range(self.idsize):
+                    for y2 in range(self.grid_size):
                         j=self.grid_size*y2+x2
                         cost+=W[i,j,self.grid[y1,x1]-1,self.grid[y2,x2]-1]
         return cost

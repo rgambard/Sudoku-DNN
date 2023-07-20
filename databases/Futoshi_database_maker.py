@@ -5,6 +5,7 @@ sys.path.insert(0, '..')
 
 import Solver
 import numpy as np
+import pickle
 import Futoshi
 
 
@@ -60,7 +61,20 @@ def __main__():
     print("Starting ! ")
     t = tqdm.tqdm(total=n_grids)
     good_grids=np.zeros((n_grids, grid_size, grid_size))
-    nfeatures = np.zeros((n_grids, grid_size**2, grid_size**2))
+    features = np.zeros((grid_size**2, grid_size**2, 5))
+    li = np.linspace(0,1,grid_size)
+    for x in range(grid_size):
+        for y in range(grid_size):
+            i=y*grid_size+x
+            for x1 in range(grid_size):
+                for y1 in range(grid_size):
+                    j=y1*grid_size+x1
+                    features[i,j,0]=li[y]
+                    features[i,j,1]=li[x]
+                    features[i,j,2]=li[y1]
+                    features[i,j,3]=li[x1]
+
+    nfeatures = np.array(np.broadcast_to(features[np.newaxis,...],(n_grids,grid_size**2,grid_size**2,5)));
     i=0
     while (i<n_grids):
         futoshi, vsol = genGrid()
@@ -68,14 +82,14 @@ def __main__():
             continue
         if i%1==0:
             print(futoshi)
-        nfeatures[i]=futoshi.get_info()
+        nfeatures[i,:,:,4]=futoshi.get_info()
         good_grids[i]=futoshi.grid
         t.update(1)
         i+=1
 
     info = (grid_size**2, grid_size,  5) # n_variables, n_values, n_features
     data = (info,nfeatures, good_grids)
-    file = open("futoshi_ine.pkl",'wb')
+    file = open("futoshi_complete.pkl",'wb')
     pickle.dump(data,file)
     file.close()
 

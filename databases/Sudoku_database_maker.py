@@ -25,7 +25,6 @@ for n_grid in range(10000):
         good_grids[n_solt] = np.array(sudoku).astype(np.uint8).reshape(grid_size,grid_size)
         sudok = Sudoku.Sudoku(grid_size, grid = np.array(sudoku).astype(np.uint8).reshape(grid_size,grid_size))
         print(sudok)
-        breakpoint()
         nfeatures[n_solt] = many_data[n_grid]["query"].reshape(grid_size,grid_size);
         n_solt+=1;
         if(n_solt==n_sol):break
