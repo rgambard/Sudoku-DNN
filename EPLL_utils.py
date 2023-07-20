@@ -10,7 +10,7 @@ from random import sample
 rng = np.random.default_rng()
 masks = None
 
-def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary):
+def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, epll =False):
     device = y_true.device
     bs, nb_masks, nb_var= y_true.shape
     bs, nb_masks,nb_rand_y, mask_width = rand_y.shape
@@ -103,21 +103,20 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100,hints_logit = N
 
     if nb_neigh != 0:
         # ajoût de la variable regulatrice
-        nb_val = nb_val+1
+        #nb_val = nb_val+1
         Wpad = torch.nn.functional.pad(W,(0,1,0,1))
         randindexes = torch.rand((bs,nb_rand_masks,nb_var-2), device = device).argsort(dim=-1)[...,:nb_neigh]
         randindexes = masks_complementary[torch.arange(bs)[:,None,None],rand_masks[:,:,None],randindexes]
-        y_mod[torch.arange(bs)[:,None,None],torch.arange(nb_rand_masks)[None,:,None],randindexes] = nb_val-1
+        y_mod[torch.arange(bs)[:,None,None],torch.arange(nb_rand_masks)[None,:,None],randindexes] = nb_val
         W = Wpad
 
 
-    if nb_neigh==0:
-        ny_indices = get_indexes_torch(y_mod,nb_val,masks[np.arange(bs)[:,None],rand_masks],r_rand[np.arange(bs)[:,None],rand_masks], masks_complementary[np.arange(bs)[:,None],rand_masks])
-    else:
-        ny_indices = get_indexes_torch(y_mod,nb_val,masks[np.arange(bs)[:,None],rand_masks],er_rand[np.arange(bs)[:,None],rand_masks],masks_complementary[np.arange(bs)[:,None],rand_masks])
+    #if nb_neigh==0:
+    #    ny_indices = get_indexes_torch(y_mod,nb_val,masks[np.arange(bs)[:,None],rand_masks],r_rand[np.arange(bs)[:,None],rand_masks], masks_complementary[np.arange(bs)[:,None],rand_masks])
+    #else:
+    ny_indices = get_indexes_torch(y_mod,nb_val,masks[np.arange(bs)[:,None],rand_masks],r_rand[np.arange(bs)[:,None],rand_masks],masks_complementary[np.arange(bs)[:,None],rand_masks])
     tny_indices = ny_indices.int()
-    Wr = W.reshape(bs, nb_var, nb_var, nb_val, nb_val)
-    values_for_each_y = Wr[tny_indices[:,:,:,:,0],tny_indices[:,:,:,:,1],tny_indices[:,:,:,:,2], tny_indices[:,:,:,:,3],tny_indices[:,:,:,:,4]]
+    values_for_each_y = W[tny_indices[:,:,:,:,0],tny_indices[:,:,:,:,1],tny_indices[:,:,:,:,2], tny_indices[:,:,:,:,3],tny_indices[:,:,:,:,4]]
     cost_for_each_y = -torch.sum(values_for_each_y, axis = 3)
     log_cost = torch.logsumexp(cost_for_each_y, dim=2)
 
