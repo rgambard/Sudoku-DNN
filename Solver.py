@@ -48,7 +48,7 @@ def solver(W,unary=None, solution=None, random=False, top=999999, resolution = 1
     """
     allSolutions = 1000 if all_solutions else 0
     Problem = make_CFN(W, unary=unary, top = top, resolution = resolution, allSolutions = allSolutions, verbose = debug)
-    Problem.Dump("dump.cfn")
+    Problem.Dump("dump.wcsp")
     
     if setUB:
         Problem.SetUB(10**(-resolution))

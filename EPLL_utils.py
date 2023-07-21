@@ -101,17 +101,28 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
 
     y_mod = ((y_true-1))[:,None,:].expand(bs,nb_rand_masks,nb_var).clone()
     #rand_masks = torch.randint(0,masks.shape[1],(bs,nb_rand_masks), device = y_true.device)
+
+    #generation aleatoire des masques
     rand_indexes = torch.rand((bs, nb_rand_masks, nb_var), device = y_true.device).argsort(dim=-1)
     masks = rand_indexes[...,:mask_width]
     masks_complementary = rand_indexes[...,mask_width:]
 
     if nb_neigh != 0:
-        # ajoût de la variable regulatrice
-        #nb_val = nb_val+1
+        # ajout de la valeur regulatrice, de coût 0
         Wpad = torch.nn.functional.pad(W,(0,1,0,1))
         randindexes = torch.rand((bs,nb_rand_masks,nb_var-mask_width), device = device).argsort(dim=-1)[...,:nb_neigh]
         randindexes = masks_complementary[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes]
         y_mod[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes] = nb_val
+        W = Wpad
+
+
+    if hints_logit is not None:# hints_logit is not None:
+        #breakpoint()
+        nb_var = nb_var+1 # add 1 additionnal variable that represents hints
+        Wpad = torch.nn.functional.pad(W,(0,0,0,0,0,1,0,1))
+        masks_complementary = torch.nn.functional.pad(masks_complementary,(0,1),value = nb_var-1)
+        y_mod = torch.nn.functional.pad(y_mod,(0,1),value = 0)
+        Wpad[:,:-1,nb_var-1,:nb_val,0] = hints_logit[:,:]
         W = Wpad
 
 
@@ -125,7 +136,7 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
     cost_for_each_y = -torch.sum(values_for_each_y, axis = 3)
     log_cost = torch.logsumexp(cost_for_each_y, dim=2)
 
-    PLL = torch.sum(cost_for_each_y[:,:,0])-torch.sum(log_cost)
+    PLL = torch.sum(cost_for_each_y[:,:,0]-log_cost)
 
     return(PLL)
 

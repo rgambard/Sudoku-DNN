@@ -49,12 +49,12 @@ def train_PLL(args, game_utils, device):
     #model = Net.VerySimpleNet(81,9,4, device)
     #instanciate optimizer and scheduler
     model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), 
-                                 lr=args.lr, 
-                                 weight_decay=args.weight_decay)
+    #optimizer = torch.optim.Adam(model.parameters(), 
+    #                             lr=args.lr, 
+    #                             weight_decay=args.weight_decay)
 
-    #optimizer = torch.optim.SGD(model.parameters(), 
-    #                             lr=args.lr)
+    optimizer = torch.optim.SGD(model.parameters(), 
+                                 lr=args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
 
@@ -81,6 +81,7 @@ def train_PLL(args, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
             W, unary = model(NN_input, device, unary = args.unary)
+            #print(W[0,0,1,0],W[0,0,2,0])
 
             nb_var = W.shape[1]
             nb_val = W.shape[3]
@@ -92,7 +93,7 @@ def train_PLL(args, game_utils, device):
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
             
             #PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
-            PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=None)
+            PLL1 = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
             PLL=PLL1
             PLL_epoch += PLL.item()
             PLL1_epoch += PLL1.item()

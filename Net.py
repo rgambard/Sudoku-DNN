@@ -90,7 +90,9 @@ class Net(nn.Module):
         self.nb_val= nb_val
         
         self.MLP = ResMLP(self.nb_val**2, input_size, hidden_size, nblocks)      
+        self.MLPu = ResMLP(self.nb_val, input_size, hidden_size,1) #unary net      
         self.MLP.apply(weights_init)  
+        self.MLPu.apply(weights_init)  
         
 
     def forward(self, x, device, unary = False):
@@ -114,11 +116,10 @@ class Net(nn.Module):
         rr = x[:,t[0],t[1]].reshape(-1,self.feature_size)
         un = x[:,torch.arange(self.nb_var),torch.arange(self.nb_var)].reshape(-1,self.feature_size)
         pred = self.MLP(rr)
-        predu = self.MLP(un) # prediction termes unitaires
+        predu = self.MLPu(un) # prediction termes unitaires
 
 
-        predu = predu.reshape(bs,-1,self.nb_val,self.nb_val)
-        predu = predu[:,:,torch.arange(self.nb_val),torch.arange(self.nb_val)]
+        predu = predu.reshape(bs,self.nb_var,self.nb_val)
 
         pred = pred.reshape(bs,-1,self.nb_val,self.nb_val)
         out = torch.zeros(bs,self.nb_var,self.nb_var,self.nb_val,self.nb_val, device = device)
