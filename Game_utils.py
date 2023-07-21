@@ -161,7 +161,7 @@ class Sudoku_utils:
 
 
 class Sudoku_grounding_utils:
-    def __init__(self,  train_size = 500, validation_size = 100, test_size = 100, batch_size = 10, path_to_data = "databases/"):
+    def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/"):
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, nb_features = info
@@ -222,6 +222,7 @@ class Sudoku_grounding_utils:
     @staticmethod 
     def check_valid(infos, W, target, unaryb =None, debug=1):
         sud = Sudoku.Sudoku(W.shape[3])
+        breakpoint()
         W = np.trunc(W*10)
         sud.solve(W, unaryb, debug = (debug>1))
         valid = sud.check_sudoku()

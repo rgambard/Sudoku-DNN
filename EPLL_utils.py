@@ -49,21 +49,30 @@ def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, epll 
 
 def get_random_perms(nb_val, masks, device, nb_rand_perms=20): 
     bs, nb_masks, mask_width = masks.shape
-    all_perms = torch.zeros((nb_val,nb_val,mask_width),dtype = torch.int8, device = device)
     if mask_width == 1:
-        all_perms[:,:,0] = torch.arange(nb_val, device = device)[:]
+        all_perms = torch.zeros((nb_val,mask_width),dtype = torch.int8, device = device)
+        all_perms[:,0] = torch.arange(nb_val, device = device)[:]
     if mask_width ==  2:
+        all_perms = torch.zeros((nb_val,nb_val,mask_width),dtype = torch.int8, device = device)
         all_perms[:,:,0] = torch.arange(nb_val, device = device)[:,None]
         all_perms[:,:,1] = torch.arange(nb_val, device = device)[None,:]
     elif mask_width == 3:
-        all_perms[:,:,0] = torch.arange(nb_val, device = device)[:,None, None]
-        all_perms[:,:,1] = torch.arange(nb_val, device = device)[None,:, None]
-        all_perms[:,:,2] = torch.arange(nb_val, device = device)[None,None,:]
+        all_perms = torch.zeros((nb_val,nb_val,nb_val,mask_width),dtype = torch.int8, device = device)
+        all_perms[:,:,:,0] = torch.arange(nb_val, device = device)[:,None, None]
+        all_perms[:,:,:,1] = torch.arange(nb_val, device = device)[None,:, None]
+        all_perms[:,:,:,2] = torch.arange(nb_val, device = device)[None,None,:]
+    elif mask_width == 4:
+        all_perms = torch.zeros((nb_val,nb_val,nb_val,nb_val,mask_width),dtype = torch.int8, device = device)
+        all_perms[:,:,:,:,0] = torch.arange(nb_val, device = device)[:,None, None,None]
+        all_perms[:,:,:,:,1] = torch.arange(nb_val, device = device)[None,:, None,None]
+        all_perms[:,:,:,:,2] = torch.arange(nb_val, device = device)[None,None,:,None]
+        all_perms[:,:,:,:,3] = torch.arange(nb_val, device = device)[None,None,None,:]
+
     all_perms = all_perms.reshape((nb_val)**mask_width,mask_width)
     nb_tot_perm, mask_width = all_perms.shape
     rand_perms_indexes = torch.rand((bs,nb_masks,nb_tot_perm),device = device)
     rand_perms_indexes[:,:,0]=-1 # so that we always select the identity first
-    rand_perms_indexes = rand_perms_indexes.argsort(dim=-1)[:nb_rand_perms]
+    rand_perms_indexes = rand_perms_indexes.argsort(dim=-1)[...,:nb_rand_perms]
 
     rand_perms = all_perms[rand_perms_indexes]
     return rand_perms

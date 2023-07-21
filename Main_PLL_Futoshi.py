@@ -59,7 +59,6 @@ def train_PLL(args, game_utils, device):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
 
 
-    EPLL_utils.init_global_variables(args.batch_size, game_utils.nb_var, game_utils.nb_val)
     print("\n Training with the following parameters: \n" 
             + str(args))
 
@@ -88,12 +87,13 @@ def train_PLL(args, game_utils, device):
             bs = W.shape[0]
 
             Wr = W.reshape(bs, nb_var, nb_var, nb_val,nb_val)
-            L1 = torch.linalg.vector_norm(W, ord = 3)  # L1 penalty on predicted cost
+            L1 = torch.linalg.vector_norm(W, ord = 1)  # L1 penalty on predicted cost
             #L1 = torch.sum(torch.abs(W)*(torch.abs(W)>3))
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
             
-            PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
+            #PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
             PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=None)
+            PLL=PLL1
             PLL_epoch += PLL.item()
             PLL1_epoch += PLL1.item()
             unary_L1_epoch += unary_L1.item()*args.reg_term_unary
@@ -117,7 +117,7 @@ def train_PLL(args, game_utils, device):
             #W.register_hook(lambda grad: print(" gradient !!!  \n",W[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].round(), "\n" , grad[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]])) 
             #if batch_idx%200 == 1: 
             #    unary.register_hook(lambda grad: print(grad[0,0],"\n", unary[0,0]))
-            #W.register_hook(funcgrad)
+            W.register_hook(funcgrad)
             loss.backward()
             optimizer.step()
             #if batch_idx%200 == 2: 
@@ -125,7 +125,7 @@ def train_PLL(args, game_utils, device):
             loss_epoch += loss.item()
         optimizer.zero_grad()
         #print(W_save)
-        #print(grad_save)
+        print(grad_save)
         #grad_save *= 0
         #print(nb_save)
         test_loss = 0
@@ -187,6 +187,8 @@ def test(args, model, game_utils, device):
             y_true = target.type(torch.LongTensor).to(device)
             
             W, unary = model(NN_input, device)
+
+            solve_parallel(game_utils.check_valid,queries.cpu().detach().numpy(),target.cpu().detach().numpy(),W.cpu().detach().numpy())
             proc = executor.submit(solve_parallel,game_utils.check_valid,queries.cpu().detach().numpy(),target.cpu().detach().numpy(),W.cpu().detach().numpy())
             processes.append(proc)
         print(" Collecting results ( be patient )")
