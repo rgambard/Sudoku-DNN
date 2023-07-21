@@ -98,8 +98,8 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
     nb_val = W.shape[3]
 
 
-
-    y_mod = ((y_true-1))[:,None,:].expand(bs,nb_rand_masks,nb_var).clone()
+    ### ATTENTION -1
+    y_mod = ((y_true-1))[:,None,:].expand(bs,nb_rand_masks,nb_var).clone() #### !!!!! -1
     #rand_masks = torch.randint(0,masks.shape[1],(bs,nb_rand_masks), device = y_true.device)
 
     #generation aleatoire des masques

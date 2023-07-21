@@ -82,11 +82,13 @@ class Sudoku:
     def solve(self, W, unary = None, debug = False):
         if unary is None:
             unary = np.zeros((self.grid_size**2,self.grid_size))
+            """
         for x1 in range(self.grid_size):
             for y1 in range(self.grid_size):
                 i=y1*self.grid_size+x1
                 if(self.grid[y1,x1]!=0): # add negative costs to hints
                     unary[i,self.grid[y1,x1]-1]=-10
+                    """
         d=-1
         if debug == True:
             d = 0 

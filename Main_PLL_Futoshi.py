@@ -105,11 +105,11 @@ def train_PLL(args, game_utils, device):
                 #W_save += np.abs(W[0,torch.where(data[:,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].cpu().detach().numpy()).sum(axis=0) ; 
                 
                 #grad_save += np.abs(grad[:,[0,1],[2,3]].cpu().detach().numpy()).sum(axis=1).sum(axis=0);
-                grad_int = grad[0,torch.where(queries[0,:,:,4]==-1)[0],torch.where(queries[0,:,:,4]==-1)[1]].cpu().detach().numpy().sum(axis=0)
+                grad_int = grad[0,torch.where(queries[0,:,:,4]==1)[0],torch.where(queries[0,:,:,4]==1)[1]].cpu().detach().numpy().sum(axis=0)
                 #grad_int = grad[0,0,1].cpu().detach().numpy();
-                grad_int1 = grad[0,torch.where(queries[0,:,:,4]==-1)[1],torch.where(queries[0,:,:,4]==-1)[0]].cpu().detach().numpy().sum(axis=0).T
+                #grad_int1 = grad[0,torch.where(queries[0,:,:,4]==-1)[1],torch.where(queries[0,:,:,4]==-1)[0]].cpu().detach().numpy().sum(axis=0).T
                 #grad_int1 = grad[0,1,0].cpu().detach().numpy().T;
-                grad_save += grad_int+grad_int1
+                grad_save += grad_int#+grad_int1
                 #print(grad_save.round(4))
                 #print(W[0,8,9].cpu().detach().numpy().round(1))
                 #nb_sav += (y_true[1]==0)
@@ -126,7 +126,7 @@ def train_PLL(args, game_utils, device):
             loss_epoch += loss.item()
         optimizer.zero_grad()
         #print(W_save)
-        print(grad_save)
+        print(grad_save.round(1))
         #grad_save *= 0
         #print(nb_save)
         test_loss = 0
@@ -245,6 +245,10 @@ def main():
                                               test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
     elif args.game_type =="Sudoku_grounding":
         game_utils = Game_utils.Sudoku_grounding_utils(train_size = args.train_size, validation_size = args.valid_size,
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
+
+    elif args.game_type =="Sudoku_grounding1":
+        game_utils = Game_utils.Sudoku_grounding_utils1(train_size = args.train_size, validation_size = args.valid_size,
                                               test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
 
 
