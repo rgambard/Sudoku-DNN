@@ -93,7 +93,7 @@ def train_PLL(args, game_utils, device):
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
             
             #PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
-            PLL1 = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
+            PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=unary)
             PLL=PLL1
             PLL_epoch += PLL.item()
             PLL1_epoch += PLL1.item()
