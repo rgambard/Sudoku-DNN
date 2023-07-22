@@ -21,19 +21,20 @@ def make_CFN(W, unary = None, top=999999, resolution = 1, backtrack = 500000, al
     
     Problem = CFN(top, resolution, vac=True, backtrack=backtrack, allSolutions = allSolutions, verbose = verbose)
     #Problem = tb2.CFN(top, resolution, vac=True)
-    grid_size = int(W.shape[-1])
+    nb_var = W.shape[0]
+    nb_val = W.shape[3]
     
     #Create variables
-    for i in range(grid_size**2):
-        Problem.AddVariable('x' + str(i), range(1, grid_size+1))
+    for i in range(nb_var):
+        Problem.AddVariable('x' + str(i), range(1, nb_val+1))
     #costs
-    for i in range(grid_size**2):
-        for j in range(i+1, grid_size**2):
+    for i in range(nb_var):
+        for j in range(i+1, nb_var):
             Problem.AddFunction([i, j], W[i,j].flatten())
             
     #unary costs
     if unary is not None:
-        for i in range(grid_size**2):
+        for i in range(nb_var):
             if np.max(unary[i])>0:
                 Problem.AddFunction([i], unary[i])#*2*top)
     
@@ -41,7 +42,7 @@ def make_CFN(W, unary = None, top=999999, resolution = 1, backtrack = 500000, al
 
 
 def solver(W,unary=None, solution=None, random=False, top=999999, resolution = 1, margin = 1,
-          setUB = False, all_solutions = False, debug = -1):
+          setUB = False, all_solutions = False, onlyDump = False, debug = -1):
     """
     Solve the sudoku with constraints from matrix W and hints in unary
     If solution is given, the solution is penalized for the Hinge Loss
@@ -49,6 +50,8 @@ def solver(W,unary=None, solution=None, random=False, top=999999, resolution = 1
     allSolutions = 1000 if all_solutions else 0
     Problem = make_CFN(W, unary=unary, top = top, resolution = resolution, allSolutions = allSolutions, verbose = debug)
     Problem.Dump("dump.wcsp")
+    if onlyDump:
+        return;
     
     if setUB:
         Problem.SetUB(10**(-resolution))

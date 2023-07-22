@@ -8,6 +8,7 @@ import time
 import pickle
 from tqdm import tqdm
 
+import Solver
 import Net
 import EPLL_utils
 import Game_utils
@@ -49,12 +50,12 @@ def train_PLL(args, game_utils, device):
     #model = Net.VerySimpleNet(81,9,4, device)
     #instanciate optimizer and scheduler
     model.to(device)
-    #optimizer = torch.optim.Adam(model.parameters(), 
-    #                             lr=args.lr, 
-    #                             weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), 
+                                 lr=args.lr, 
+                                 weight_decay=args.weight_decay)
 
-    optimizer = torch.optim.SGD(model.parameters(), 
-                                 lr=args.lr)
+    #optimizer = torch.optim.SGD(model.parameters(), 
+    #                             lr=args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
 
@@ -65,6 +66,7 @@ def train_PLL(args, game_utils, device):
     print("\n \n")
     global grad_save
     batch_size = args.batch_size
+    seuil = 3
     #### TRAINING ####
     for epoch in range(1, args.epoch_max):
         print("EPOCH ", epoch, " on ", args.epoch_max)
@@ -105,11 +107,17 @@ def train_PLL(args, game_utils, device):
                 #W_save += np.abs(W[0,torch.where(data[:,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].cpu().detach().numpy()).sum(axis=0) ; 
                 
                 #grad_save += np.abs(grad[:,[0,1],[2,3]].cpu().detach().numpy()).sum(axis=1).sum(axis=0);
-                grad_int = grad[0,torch.where(queries[0,:,:,4]==1)[0],torch.where(queries[0,:,:,4]==1)[1]].cpu().detach().numpy().sum(axis=0)
+                #grad_int = grad[0,torch.where(queries[0,0,:,4]==1)[0],torch.where(queries[0,0,:,4]==1)[1]].cpu().detach().numpy().sum(axis=0)
                 #grad_int = grad[0,0,1].cpu().detach().numpy();
                 #grad_int1 = grad[0,torch.where(queries[0,:,:,4]==-1)[1],torch.where(queries[0,:,:,4]==-1)[0]].cpu().detach().numpy().sum(axis=0).T
                 #grad_int1 = grad[0,1,0].cpu().detach().numpy().T;
-                grad_save += grad_int#+grad_int1
+                """
+                if queries[0,0,0,4]==1.0:
+                    W_save += W[0,0,1]
+                    grad_int = grad[0,0,:9].cpu().detach().numpy().sum(axis=0)
+                    grad_save += grad_int#+grad_int1
+                    """
+                grad_save=grad
                 #print(grad_save.round(4))
                 #print(W[0,8,9].cpu().detach().numpy().round(1))
                 #nb_sav += (y_true[1]==0)
@@ -126,7 +134,7 @@ def train_PLL(args, game_utils, device):
             loss_epoch += loss.item()
         optimizer.zero_grad()
         #print(W_save)
-        print(grad_save.round(1))
+        #print(grad_save.round(1))
         #grad_save *= 0
         #print(nb_save)
         test_loss = 0
@@ -136,25 +144,29 @@ def train_PLL(args, game_utils, device):
             queries, target = next(data_iterator)
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             W, unary = model(NN_input, device, unary = args.unary)
+            y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
             PLL = -EPLL_utils.PLL_all2(W, y_true, hints_logit = unary)
             loss = PLL #+ args.reg_term * L1
             test_loss += loss.item()
             if(batch_idx == 0):
                 print("DEBUG")
-                print(queries[0,0,5])
-                print(W[0,0,5].cpu().detach().numpy().round(2))
-                print(queries[0,0,1])
-                print(W[0,0,1].cpu().detach().numpy().round(2))
-                print(queries[0,7,8])
-                print(W[0,7,8].cpu().detach().numpy().round(2))
-                print(queries[0,7,17])
-                print(W[0,7,17].cpu().detach().numpy().round(2))
-                print(W[0,7].sum(axis=0).sum(axis=1).cpu().detach().numpy().round(2))
+                print(y_true[0].reshape(9,9))
+                print(queries[0,3,23])
+                print(W[0,3,4].cpu().detach().numpy().round(2))
+                print(W[0,3,13].cpu().detach().numpy().round(2))
+                print(W[0,3,23].cpu().detach().numpy().round(2))
                 print(unary[0,7].cpu().detach().numpy().round(2))
+                print(unary[0,0].cpu().detach().numpy().round(2))
                 #print(np.trunc(unary[0,8].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,0].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,1].cpu().detach().numpy()))
                 print("FINdebug")
+                Wb = W[0].cpu().detach().numpy()
+                unaryd = unary[0].cpu().detach().numpy()
+                unaryd = unaryd-unaryd.min(axis=-1)[:,None]
+                Wb = Wb-Wb.min(axis=-1).min(axis=-1)[:,:,None,None]
+                Wb = Wb*(Wb>seuil)
+                Solver.solver(Wb,unaryd,onlyDump=True)
                 
 
         scheduler.step(loss_epoch)
@@ -237,6 +249,15 @@ def main():
  
     args = argparser.parse_args()    
 
+    if torch.cuda.is_available():
+        dev = "cuda:0"
+        print("GPU connected")
+    else:
+        dev = "cpu"
+        print("No GPU detected. Training on CPUs (be patient)")
+    device = torch.device(dev)
+
+
     if args.game_type =="Futoshiki":
         game_utils = Game_utils.Futoshi_utils(train_size = args.train_size, validation_size = args.valid_size,
                                               test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
@@ -249,19 +270,15 @@ def main():
 
     elif args.game_type =="Sudoku_grounding1":
         game_utils = Game_utils.Sudoku_grounding_utils1(train_size = args.train_size, validation_size = args.valid_size,
-                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
+    elif args.game_type =="Sudoku_grounding2":
+        game_utils = Game_utils.Sudoku_grounding_utils2(train_size = args.train_size, validation_size = args.valid_size,
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
+
 
 
     torch.manual_seed(args.seed)
-    if torch.cuda.is_available():
-        dev = "cuda:0"
-        print("GPU connected")
-    else:
-        dev = "cpu"
-        print("No GPU detected. Training on CPUs (be patient)")
-    device = torch.device(dev)
-
-    ### TRAINING ###
+        ### TRAINING ###
     if torch.cuda.is_available():
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)

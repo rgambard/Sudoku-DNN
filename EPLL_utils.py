@@ -77,7 +77,6 @@ def get_random_perms(nb_val, masks, device, nb_rand_perms=20):
     rand_perms = all_perms[rand_perms_indexes]
     return rand_perms
     
-
     
 #r_ind = get_indexes_torch(y_true, nb_val, masks, r_rand)
 def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None):
@@ -99,22 +98,13 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
 
 
     ### ATTENTION -1
-    y_mod = ((y_true-1))[:,None,:].expand(bs,nb_rand_masks,nb_var).clone() #### !!!!! -1
+    y_mod = y_true[:,None,:].expand(bs,nb_rand_masks,nb_var).clone() #### !!!!! -1
     #rand_masks = torch.randint(0,masks.shape[1],(bs,nb_rand_masks), device = y_true.device)
 
     #generation aleatoire des masques
     rand_indexes = torch.rand((bs, nb_rand_masks, nb_var), device = y_true.device).argsort(dim=-1)
     masks = rand_indexes[...,:mask_width]
     masks_complementary = rand_indexes[...,mask_width:]
-
-    if nb_neigh != 0:
-        # ajout de la valeur regulatrice, de coût 0
-        Wpad = torch.nn.functional.pad(W,(0,1,0,1))
-        randindexes = torch.rand((bs,nb_rand_masks,nb_var-mask_width), device = device).argsort(dim=-1)[...,:nb_neigh]
-        randindexes = masks_complementary[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes]
-        y_mod[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes] = nb_val
-        W = Wpad
-
 
     if hints_logit is not None:# hints_logit is not None:
         #breakpoint()
@@ -124,6 +114,15 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
         y_mod = torch.nn.functional.pad(y_mod,(0,1),value = 0)
         Wpad[:,:-1,nb_var-1,:nb_val,0] = hints_logit[:,:]
         W = Wpad
+
+    if nb_neigh != 0:
+        # ajout de la valeur regulatrice, de coût 0
+        Wpad = torch.nn.functional.pad(W,(0,1,0,1))
+        randindexes = torch.rand((bs,nb_rand_masks,nb_var-mask_width), device = device).argsort(dim=-1)[...,:nb_neigh]
+        randindexes = masks_complementary[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes]
+        y_mod[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes] = nb_val
+        W = Wpad
+
 
 
     #if nb_neigh==0:

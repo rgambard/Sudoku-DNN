@@ -114,12 +114,13 @@ class Net(nn.Module):
         bs = x.shape[0]
         t = torch.triu_indices(self.nb_var,self.nb_var,1)
         rr = x[:,t[0],t[1]].reshape(-1,self.feature_size)
-        un = x[:,torch.arange(self.nb_var),torch.arange(self.nb_var)].reshape(-1,self.feature_size)
         pred = self.MLP(rr)
-        predu = self.MLPu(un) # prediction termes unitaires
-
-
-        predu = predu.reshape(bs,self.nb_var,self.nb_val)
+        if unary:
+            un = x[:,torch.arange(self.nb_var, device = device),torch.arange(self.nb_var, device = device)].reshape(-1,self.feature_size)
+            predu = self.MLPu(un) # prediction termes unitaires
+            predu = predu.reshape(bs,self.nb_var,self.nb_val)
+        else:
+            predu = torch.zeros(bs,self.nb_var,self.nb_val, device = device)
 
         pred = pred.reshape(bs,-1,self.nb_val,self.nb_val)
         out = torch.zeros(bs,self.nb_var,self.nb_var,self.nb_val,self.nb_val, device = device)
