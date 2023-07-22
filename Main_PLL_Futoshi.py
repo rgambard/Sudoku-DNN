@@ -66,7 +66,6 @@ def train_PLL(args, game_utils, device):
     print("\n \n")
     global grad_save
     batch_size = args.batch_size
-    seuil = 3
     #### TRAINING ####
     for epoch in range(1, args.epoch_max):
         print("EPOCH ", epoch, " on ", args.epoch_max)
@@ -78,7 +77,7 @@ def train_PLL(args, game_utils, device):
         grad_save = 0
         for batch_idx in tqdm(range(args.train_size)):
         
-            queries, target = next(data_iterator)
+            queries, target, infos = next(data_iterator)
             optimizer.zero_grad()
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
@@ -141,7 +140,7 @@ def train_PLL(args, game_utils, device):
         # VALIDATION
         data_iterator = game_utils.get_data(validation=True) 
         for batch_idx in range(args.valid_size): 
-            queries, target = next(data_iterator)
+            queries, target, infos = next(data_iterator)
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             W, unary = model(NN_input, device, unary = args.unary)
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
@@ -151,6 +150,7 @@ def train_PLL(args, game_utils, device):
             if(batch_idx == 0):
                 print("DEBUG")
                 print(y_true[0].reshape(9,9)+1)
+                print(infos[0].reshape(9,9)+1)
                 print(queries[0,3,23])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
                 print(W[0,3,13].cpu().detach().numpy().round(2))
@@ -163,9 +163,9 @@ def train_PLL(args, game_utils, device):
                 print("FINdebug")
                 Wb = W[0].cpu().detach().numpy()
                 unaryd = unary[0].cpu().detach().numpy()
-                unaryd = unaryd-unaryd.min(axis=-1)[:,:,None]
+                unaryd = unaryd-unaryd.min(axis=1)[:,None]
                 Wb = Wb-Wb.min(axis=-1).min(axis=-1)[:,:,None,None]
-                Wb = Wb*(Wb>seuil)
+                Wb = Wb*(Wb>args.threshold)
                 Solver.solver(Wb,unaryd,onlyDump=True)
                 
 
@@ -195,14 +195,19 @@ def test(args, model, game_utils, device):
 
         for batch_idx in tqdm(range(args.test_size)):
         
-            queries, target = next(data_iterator)
+            queries, target, infos = next(data_iterator)
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device)
             
             W, unary = model(NN_input, device)
+            Wb = W[0].cpu().detach().numpy()
+            unaryd = unary[0].cpu().detach().numpy()
+            unaryd = unaryd-unaryd.min(axis=1)[:,None]
+            Wb = Wb-Wb.min(axis=-1).min(axis=-1)[:,:,None,None]
+            Wb = Wb*(Wb>args.threshold)
 
-            solve_parallel(game_utils.check_valid,queries.cpu().detach().numpy(),target.cpu().detach().numpy(),W.cpu().detach().numpy())
-            proc = executor.submit(solve_parallel,game_utils.check_valid,queries.cpu().detach().numpy(),target.cpu().detach().numpy(),W.cpu().detach().numpy())
+            #solve_parallel(game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
+            proc = executor.submit(solve_parallel,game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
             processes.append(proc)
         print(" Collecting results ( be patient )")
         for process_idx in tqdm(range(args.test_size)):
@@ -216,8 +221,8 @@ def test(args, model, game_utils, device):
     print(results)
     return results
 
-def solve_parallel (check_valid_ft, data, target, W):
-    ret, game = check_valid_ft(data[0], W[0], target[0])
+def solve_parallel (check_valid_ft, query, target, info, W, unary):
+    ret, game = check_valid_ft(query, target, info, W, unary)
     return data, target, W, ret, game
 
 def main():            
@@ -246,6 +251,7 @@ def main():
     argparser.add_argument("--scheduler_factor", type=int, default=0.5, help="lr scheduler reducing factor when the loss does'nt improve") 
     argparser.add_argument("--scheduler_patience", type=int, default=5, help="lr scheduler patience") 
     argparser.add_argument("--min_lr", type=int, default=10e-6, help="min lr after which the training stops") 
+    argparser.add_argument("--threshold", type=float, default=3, help="thresholding of the cost matrix to help the solver") 
  
     args = argparser.parse_args()    
 

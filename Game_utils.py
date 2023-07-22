@@ -17,12 +17,12 @@ class DataIterable:
         batch_size = self.batch_size
         if (self.index+1)*self.batch_size>self.targets.shape[0]:
             raise StopIteration  # signals "the end"
-        queries =  self.queries[self.index*batch_size:(self.index+1)*batch_size]
+        infos =  self.queries[self.index*batch_size:(self.index+1)*batch_size]
         if self.queries_transform_ft is not None:
-            queries = self.queries_transform_ft(queries)
+            queries = self.queries_transform_ft(infos)
         targets = self.targets[self.index*batch_size:(self.index+1)*batch_size]
         self.index+=1
-        return queries, targets
+        return queries, targets, infos
 
 
 class Futoshi_utils:
@@ -380,8 +380,7 @@ class Sudoku_grounding_utils2:
         return nfeatures
     
     @staticmethod 
-    def check_valid(infos, W, target, unaryb =None, debug=1):
-        W = W-W.min(axis=3).min(axis=2)[:,:,None,None]
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
         sud = Sudoku.Sudoku(W.shape[3])
         sud.solve(W, unaryb, debug = (debug>1))
         valid = sud.check_sudoku()

@@ -78,9 +78,11 @@ def get_random_perms(nb_val, masks, device, nb_rand_perms=20):
     return rand_perms
     
 def new_PLL2(W, y_true, nb_neigh = 0, T=1,   nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None, idx_pairs = None):
+    breakpoint()
     nb_val = W.shape[2]**0.5
     W = W.reshape(1, W.shape[0], W.shape[1],nb_val, nb_val)
-    y_true = y_true.unsqueeze(-1)
+    y_true = y_true.unsqueeze(0)
+    idx_pairs = idx_pairs.unsqueeze(0)
     PLL_all2(W, y_true, nb_neigh = nb_neigh, T=T,   nb_rand_masks = nb_rand_masks, nb_rand_perms=nb_rand_perms, mask_width = mask_width ,hints_logit = hints_logits, idx_pairs =idx_pairs)
 
 #r_ind = get_indexes_torch(y_true, nb_val, masks, r_rand)
@@ -116,7 +118,7 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
         masks[:,:,0] = rand_indexes[...,:1]
         rand_indexes_neigh = torch.rand((bs, nb_rand_masks, nb_neigh-1), device = y_true.device).argsort(dim=-1)+1
         masks[:,:,1:] = idx_pairs[rand_indexes_comp[...,:mask_width-1]]
-        masks_complementary = idx_pairs[rand_indexes_comp[...,mask_width-1:+1]
+        masks_complementary = idx_pairs[rand_indexes_comp[...,mask_width-1:]+1]
 
 
     if hints_logit is not None:# hints_logit is not None:
