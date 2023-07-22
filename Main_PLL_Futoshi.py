@@ -150,12 +150,12 @@ def train_PLL(args, game_utils, device):
             test_loss += loss.item()
             if(batch_idx == 0):
                 print("DEBUG")
-                print(y_true[0].reshape(9,9))
+                print(y_true[0].reshape(9,9)+1)
                 print(queries[0,3,23])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
                 print(W[0,3,13].cpu().detach().numpy().round(2))
                 print(W[0,3,23].cpu().detach().numpy().round(2))
-                print(unary[0,7].cpu().detach().numpy().round(2))
+                print(unary[0,3].cpu().detach().numpy().round(2))
                 print(unary[0,0].cpu().detach().numpy().round(2))
                 #print(np.trunc(unary[0,8].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,0].cpu().detach().numpy()))
@@ -163,7 +163,7 @@ def train_PLL(args, game_utils, device):
                 print("FINdebug")
                 Wb = W[0].cpu().detach().numpy()
                 unaryd = unary[0].cpu().detach().numpy()
-                unaryd = unaryd-unaryd.min(axis=-1)[:,None]
+                unaryd = unaryd-unaryd.min(axis=-1)[:,:,None]
                 Wb = Wb-Wb.min(axis=-1).min(axis=-1)[:,:,None,None]
                 Wb = Wb*(Wb>seuil)
                 Solver.solver(Wb,unaryd,onlyDump=True)

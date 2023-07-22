@@ -323,7 +323,7 @@ class Sudoku_grounding_utils2:
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
 
         # on cache les indices
-        self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val
+        self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val-1
         self.device = device
 
 
