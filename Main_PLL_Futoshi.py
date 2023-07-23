@@ -47,15 +47,15 @@ def train_PLL(args, game_utils, device):
         print("loading model from disk", args.saved_dict)
         model.load_state_dict(torch.load(args.saved_dict,  map_location=device))
 
-    model = Net.VerySimpleNet(81,9,4, device)
+    #model = Net.VerySimpleNet(81,9,4, device)
     #instanciate optimizer and scheduler
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), 
                                  lr=args.lr, 
                                  weight_decay=args.weight_decay)
 
-    optimizer = torch.optim.SGD(model.parameters(), 
-                                 lr=args.lr)
+    #optimizer = torch.optim.SGD(model.parameters(), 
+    #                             lr=args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
 
@@ -64,7 +64,7 @@ def train_PLL(args, game_utils, device):
             + str(args))
 
     print("\n \n")
-    global grad_save
+    global grad_save, nb_save
     batch_size = args.batch_size
     #### TRAINING ####
     for epoch in range(1, args.epoch_max):
@@ -75,6 +75,7 @@ def train_PLL(args, game_utils, device):
         model.train()
         data_iterator = game_utils.get_data() 
         grad_save = 0
+        nb_save = 0
         for batch_idx in tqdm(range(args.train_size)):
         
             queries, target, infos = next(data_iterator)
@@ -82,7 +83,7 @@ def train_PLL(args, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
             W, unary = model(NN_input, device, unary = args.unary)
-            W = W*0
+            W = W
             #print(W[0,0,1,0],W[0,0,2,0])
 
             nb_var = W.shape[1]
@@ -118,6 +119,7 @@ def train_PLL(args, game_utils, device):
                     grad_save += grad_int#+grad_int1
                     """
                 grad_save+=grad.detach().cpu().numpy()
+                #nb_save += (y_true[0,0].detach().cpu()[None]==torch.arange(9)[:])
                 #print(grad_save.round(4))
                 #print(W[0,8,9].cpu().detach().numpy().round(1))
                 #nb_sav += (y_true[1]==0)
@@ -126,7 +128,7 @@ def train_PLL(args, game_utils, device):
             #W.register_hook(lambda grad: print(" gradient !!!  \n",W[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].round(), "\n" , grad[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]])) 
             #if batch_idx%200 == 1: 
             #    unary.register_hook(lambda grad: print(grad[0,0],"\n", unary[0,0]))
-            unary.register_hook(funcgrad)
+            #unary.register_hook(funcgrad)
             loss.backward()
             optimizer.step()
             #if batch_idx%200 == 2: 
@@ -134,7 +136,8 @@ def train_PLL(args, game_utils, device):
             loss_epoch += loss.item()
         optimizer.zero_grad()
         #print(W_save)
-        print(grad_save[0,0].round(2))
+        #print(grad_save[0,0].round(2))
+        #print(nb_save)
         #grad_save *= 0
         #print(nb_save)
         test_loss = 0
@@ -150,15 +153,15 @@ def train_PLL(args, game_utils, device):
             test_loss += loss.item()
             if(batch_idx == 0):
                 print("DEBUG")
-                """
-                print(y_true[0].reshape(9,9)+1)
+                
+                #print(y_true[0].reshape(9,9)+1)
                 #print(infos[0].reshape(9,9)+1)
                 print(queries[0,3,23])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
                 print(W[0,3,13].cpu().detach().numpy().round(2))
                 print(W[0,3,23].cpu().detach().numpy().round(2))
                 print(unary[0,3].cpu().detach().numpy().round(2))
-                """
+                
                 print(unary[0,0].cpu().detach().numpy().round(2))
                 #print(np.trunc(unary[0,8].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,0].cpu().detach().numpy()))
@@ -222,7 +225,7 @@ def test(args, model, game_utils, device):
     return results
 
 def solve_parallel (check_valid_ft, query, target, info, W, unary):
-    ret, game = check_valid_ft(query, target, info, W, unary, debug=1)
+    ret, game = check_valid_ft(query, target, info, W, unary, debug=2)
     return query, target, info, W, unary, ret, game
 
 def main():            
