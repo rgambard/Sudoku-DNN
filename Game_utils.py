@@ -360,7 +360,7 @@ class Sudoku_hints_utils:
         sud = Sudoku.Sudoku(grid_size)
         sudh = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        sudh.grid = sud.grid.clone()
+        sudh.grid = sud.grid.copy()
         indexes_hints = np.where(info.reshape(grid_size,grid_size)!=0)
         sudh.grid[indexes_hints] = info[indexes_hints]
         valid = sudh.check_sudoku()
@@ -457,7 +457,7 @@ class Sudoku_grounding_utils:
         sud = Sudoku.Sudoku(grid_size)
         sudh = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        sudh.grid = sud.grid.clone()
+        sudh.grid = sud.grid.copy()
         indexes_hints = np.where(sud.grid==grid_size+1)
         sudh.grid[indexes_hints] = info[indexes_hints]
         valid = sudh.check_sudoku()
@@ -479,11 +479,12 @@ class Sudoku_visual_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
+        self.nb_queries = queries.shape[0]
         self.nb_var, self.nb_val, nb_features = info
         self.nb_features = nb_features+2*(self.nb_val) # we also give to the nn the values of known digits, else 0
         #self.nb_val = self.nb_val+1
         shuffle_index = torch.randperm(queries.shape[0])
-        self.queries = torch.Tensor(queries)[shuffle_index]
+        queries = torch.Tensor(queries)[shuffle_index].reshape(self.nb_queries, -1)
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
 
         # on cache les indices
@@ -514,6 +515,7 @@ class Sudoku_visual_utils:
         self.features = features
 
         ### MNIST
+
         mnist_train_set = torchvision.datasets.MNIST('../Data_raw', train=True, download=True,
                                      transform=torchvision.transforms.Compose([
                                          torchvision.transforms.Resize((32, 32)),
@@ -529,41 +531,32 @@ class Sudoku_visual_utils:
                                          torchvision.transforms.Normalize(
                                          (0.1307,), (0.3081,))
                                      ]))
-        mnist_test_loader = torch.utils.data.DataLoader(mnist_test_set,
-                                                         batch_size=1, 
-                                                    shuffle=True)
+
+        img_table = -torch.ones((10, 10000, 1), dtype = torch.int)
+        n_logits = torch.zeros(10, dtype = torch.int32)
         for idx, (img, label) in enumerate(mnist_train_set):
-            img_table[label, np.argmin(img_table[label]!=-1)] = idx
-        breakpoint()
+            img_table[label, n_logits[label]] = idx
+            n_logits[label]+=1
+        min_logits = n_logits.min()
+        img_table = img_table[:,:min_logits]
+        self.img_table = img_table
+        self.mnist = mnist_train_set
+
+        nbqueries = queries.shape[0]
+        ninfos = img_table[queries.int(),torch.randint(0,min_logits,(nbqueries,self.nb_var), dtype = torch.int)].squeeze(-1)
+        #ninfo is a tensor containing for each cell and each sample a corresponding digit image id ( no digits correspond to a 0 )
+        queries = torch.nn.functional.pad(queries.unsqueeze(2),(0,1))
+        queries[:,:,1] = ninfos
+
                                                          
  
 
-    def get_data(self, validation = False, test = False):
-        queries = None
-        targets = None
-        train_size = self.train_size
-        test_size = self.test_size
-        validation_size = self.validation_size
-        batch_size = self.batch_size
-
-        if validation:
-            queries = self.queries[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
-            targets = self.targets[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
-        elif test:
-            queries = self.queries[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
-            targets = self.targets[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
-        else:
-            queries = self.queries[:train_size*batch_size]
-            targets = self.targets[:train_size*batch_size]
-
-        return DataIterable(queries,targets,self.batch_size, queries_transform_ft = self.make_features)
-
-
 
     def make_features(self,infos):
-        nfeatures =  self.features.unsqueeze(0).repeat(infos.shape[0],1,1,1);
+        nfeatures =  self.features.unsqueeze(0).repeat(self.batch_size,1,1,1);
         infos = infos.to(self.device)
-        one_hot_encode_hints = (infos.reshape(self.batch_size,-1)[:,:,None]==torch.arange(1,self.nb_val, device = self.device)[None,None,:])
+        one_hot_encode_hints = torch.zeros(self.batch_size,self.nb_var,self.nb_val)
+        indexes_hints = torch.where(infos[:,0]!=0)
         nfeatures[:,:,:,4:4+self.nb_val-1]=one_hot_encode_hints[:,:,None,:]
         nfeatures[:,:,:,4+self.nb_val-1:4+2*(self.nb_val-1)]=one_hot_encode_hints[:,None,:,:]
         return nfeatures
@@ -593,6 +586,28 @@ class Sudoku_visual_utils:
             print(sudh)
         return valid, sud
         #taken from https://towardsdatascience.com/implementing-yann-lecuns-lenet-5-in-pytorch-5e05a0911320
+
+    def get_data(self, validation = False, test = False):
+        queries = None
+        targets = None
+        train_size = self.train_size
+        test_size = self.test_size
+        validation_size = self.validation_size
+        batch_size = self.batch_size
+
+        if validation:
+            queries = self.queries[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
+            targets = self.targets[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
+        elif test:
+            queries = self.queries[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
+            targets = self.targets[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
+        else:
+            queries = self.queries[:train_size*batch_size]
+            targets = self.targets[:train_size*batch_size]
+
+        return DataIterable(queries,targets,self.batch_size, queries_transform_ft = self.make_features)
+
+
 
     class LeNet5(nn.Module):
 
