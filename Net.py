@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 def weights_init(m):
 
     """
@@ -127,7 +128,8 @@ class Net(nn.Module):
         out[:,t[0],t[1]] = pred
         pred = torch.swapaxes(pred,2,3)
         out[:,t[1],t[0]] = pred
-
+        predu = predu-predu.min(axis=-1)[0].detach()[:,:,None]
+        out = out-out.min(axis=-1)[0].min(axis=-1)[0].detach()[:,:,:,None,None]
         return(out, predu) 
 
 
@@ -139,8 +141,10 @@ class VerySimpleNet(nn.Module):
         self.nb_var= nb_var
         self.nb_val= nb_val
         self.W = torch.nn.Parameter(torch.rand((nb_var,nb_var,nb_val,nb_val), device = device, requires_grad=True))
+        self.unary = torch.nn.Parameter(torch.rand((nb_var,nb_val), device = device, requires_grad=True))
 
     def forward(self, x, device, unary = False):
         bs = x.shape[0]
         pred = self.W[None,...].expand(bs,*self.W.shape)
-        return pred, torch.Tensor([0,1])
+        unary = self.unary[None,...].expand(bs,*self.unary.shape)
+        return pred, unary

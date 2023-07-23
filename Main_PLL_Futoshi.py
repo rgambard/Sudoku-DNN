@@ -47,15 +47,15 @@ def train_PLL(args, game_utils, device):
         print("loading model from disk", args.saved_dict)
         model.load_state_dict(torch.load(args.saved_dict,  map_location=device))
 
-    #model = Net.VerySimpleNet(81,9,4, device)
+    model = Net.VerySimpleNet(81,9,4, device)
     #instanciate optimizer and scheduler
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), 
                                  lr=args.lr, 
                                  weight_decay=args.weight_decay)
 
-    #optimizer = torch.optim.SGD(model.parameters(), 
-    #                             lr=args.lr)
+    optimizer = torch.optim.SGD(model.parameters(), 
+                                 lr=args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = args.scheduler_factor, patience = args.scheduler_patience)
 
@@ -82,6 +82,7 @@ def train_PLL(args, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
             W, unary = model(NN_input, device, unary = args.unary)
+            W = W*0
             #print(W[0,0,1,0],W[0,0,2,0])
 
             nb_var = W.shape[1]
@@ -116,7 +117,7 @@ def train_PLL(args, game_utils, device):
                     grad_int = grad[0,0,:9].cpu().detach().numpy().sum(axis=0)
                     grad_save += grad_int#+grad_int1
                     """
-                grad_save=grad
+                grad_save+=grad.detach().cpu().numpy()
                 #print(grad_save.round(4))
                 #print(W[0,8,9].cpu().detach().numpy().round(1))
                 #nb_sav += (y_true[1]==0)
@@ -125,7 +126,7 @@ def train_PLL(args, game_utils, device):
             #W.register_hook(lambda grad: print(" gradient !!!  \n",W[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].round(), "\n" , grad[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]])) 
             #if batch_idx%200 == 1: 
             #    unary.register_hook(lambda grad: print(grad[0,0],"\n", unary[0,0]))
-            W.register_hook(funcgrad)
+            unary.register_hook(funcgrad)
             loss.backward()
             optimizer.step()
             #if batch_idx%200 == 2: 
@@ -133,7 +134,7 @@ def train_PLL(args, game_utils, device):
             loss_epoch += loss.item()
         optimizer.zero_grad()
         #print(W_save)
-        #print(grad_save.round(1))
+        print(grad_save[0,0].round(2))
         #grad_save *= 0
         #print(nb_save)
         test_loss = 0
@@ -149,18 +150,20 @@ def train_PLL(args, game_utils, device):
             test_loss += loss.item()
             if(batch_idx == 0):
                 print("DEBUG")
+                """
                 print(y_true[0].reshape(9,9)+1)
-                print(infos[0].reshape(9,9)+1)
+                #print(infos[0].reshape(9,9)+1)
                 print(queries[0,3,23])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
                 print(W[0,3,13].cpu().detach().numpy().round(2))
                 print(W[0,3,23].cpu().detach().numpy().round(2))
                 print(unary[0,3].cpu().detach().numpy().round(2))
+                """
                 print(unary[0,0].cpu().detach().numpy().round(2))
                 #print(np.trunc(unary[0,8].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,0].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,1].cpu().detach().numpy()))
-                print("FINdebug")
+                #print("FINdebug")
                 Wb = W[0].cpu().detach().numpy()
                 unaryd = unary[0].cpu().detach().numpy()
                 unaryd = unaryd-unaryd.min(axis=1)[:,None]
@@ -199,19 +202,16 @@ def test(args, model, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device)
             
-            W, unary = model(NN_input, device)
+            W, unary = model(NN_input, device, unary = args.unary)
             Wb = W[0].cpu().detach().numpy()
             unaryd = unary[0].cpu().detach().numpy()
-            unaryd = unaryd-unaryd.min(axis=1)[:,None]
-            Wb = Wb-Wb.min(axis=-1).min(axis=-1)[:,:,None,None]
             Wb = Wb*(Wb>args.threshold)
-
             #solve_parallel(game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
             proc = executor.submit(solve_parallel,game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
             processes.append(proc)
         print(" Collecting results ( be patient )")
         for process_idx in tqdm(range(args.test_size)):
-            data, target,W, res, game = processes[process_idx].result()
+            query, target, info, W, unary, res, game = processes[process_idx].result()
             if not res:
                 breakpoint()
             results.append(res)
@@ -222,8 +222,8 @@ def test(args, model, game_utils, device):
     return results
 
 def solve_parallel (check_valid_ft, query, target, info, W, unary):
-    ret, game = check_valid_ft(query, target, info, W, unary)
-    return data, target, W, ret, game
+    ret, game = check_valid_ft(query, target, info, W, unary, debug=1)
+    return query, target, info, W, unary, ret, game
 
 def main():            
 

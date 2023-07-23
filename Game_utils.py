@@ -81,24 +81,57 @@ class Futoshi_utils:
         return nfeatures
 
     @staticmethod 
-    def check_valid(infos, Wb, target, unaryb=None, debug=1):
-        fut = Futoshi.Futoshi(self.nb_val,ine=infos[:,:,4])
-        Wb = np.trunc(Wb)
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
+        fut = Futoshi.Futoshi(self.nb_val,ine=query[:,:,4])
+        fut_sol = Futoshi.Futoshi(self.nb_val,ine=query[:,:,4])
+        fut_sol.grid = target.reshape(self.nb_val,self.nb_val).astype(np.int8)+1
+        Wb = W
         fut.solve(Wb, unaryb, debug = (debug>1))
         valid = fut.check_validity()
         if debug>=1:
             print("Grid solved")
             print(fut)
             print("Solution valid : ", valid)
+        if debug>=1:
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",fut_sol.get_cost(W,unaryb))
+            #return False, sudt
+            print(fut_sol)
+            print("solved valid ", valid, " cost : ", fut.get_cost(W,unaryb))
+            print(fut)
+
         return valid, fut
+    
+    @staticmethod 
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
+        grid_size = W.shape[3]
+        sudt = Sudoku.Sudoku(grid_size)
+        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
+
+        sud = Sudoku.Sudoku(grid_size)
+        sud.solve(W, unaryb, debug = (debug>1))
+        if debug>=1:
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",sudt.get_cost(W,unaryb))
+            #return False, sudt
+            print(sudt)
+            print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
+            print(sud)
+        return valid, sud
+
+
 
 class Sudoku_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 100, batch_size = 10, path_to_data = "databases/", device = "cpu" ):
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, self.nb_features = info
-        self.queries = torch.Tensor(queries)
-        self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)
+        shuffle_index = torch.randperm(queries.shape[0])
+        self.queries = torch.Tensor(queries)[shuffle_index]
+        self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
+
 
         self.batch_size = batch_size
         self.train_size = train_size
@@ -147,16 +180,21 @@ class Sudoku_utils:
         return nfeatures
     
     @staticmethod 
-    def check_valid(infos, W, target, unaryb =None, debug=1):
-        sud = Sudoku.Sudoku(W.shape[3])
-        W=W*(W>0.5)
-        W = np.trunc(W*10)
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
+        grid_size = W.shape[3]
+        sudt = Sudoku.Sudoku(grid_size)
+        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
+
+        sud = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        valid = sud.check_sudoku()
         if debug>=1:
-            print("Grid solved")
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",sudt.get_cost(W,unaryb))
+            #return False, sudt
+            print(sudt)
+            print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
             print(sud)
-            print("Solution valid : ", valid)
         return valid, sud
 
 
@@ -220,18 +258,27 @@ class Sudoku_grounding_utils:
         nfeatures[:,:,:,5]=infos.reshape(infos.shape[0],-1).unsqueeze(1)/9
         nfeatures[:,:,:,4]=infos.reshape(infos.shape[0],-1).unsqueeze(2)/9
         return nfeatures
-    
+
     @staticmethod 
-    def check_valid(infos, W, target, unaryb =None, debug=1):
-        W = W-W.min(axis=3).min(axis=2)[:,:,None,None]
-        sud = Sudoku.Sudoku(W.shape[3])
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
+        grid_size = W.shape[3]
+        sudt = Sudoku.Sudoku(grid_size)
+        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
+
+        sud = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        valid = sud.check_sudoku()
         if debug>=1:
-            print("Grid solved")
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",sudt.get_cost(W,unaryb))
+            #return False, sudt
+            print(sudt)
+            print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
             print(sud)
-            print("Solution valid : ", valid)
         return valid, sud
+
+
+
 
 
 class Sudoku_grounding_utils1:
@@ -299,15 +346,21 @@ class Sudoku_grounding_utils1:
         return nfeatures
     
     @staticmethod 
-    def check_valid(infos, W, target, unaryb =None, debug=1):
-        W = W-W.min(axis=3).min(axis=2)[:,:,None,None]
-        sud = Sudoku.Sudoku(W.shape[3])
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
+        grid_size = W.shape[3]
+        sudt = Sudoku.Sudoku(grid_size)
+        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
+
+        sud = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        valid = sud.check_sudoku()
         if debug>=1:
-            print("Grid solved")
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",sudt.get_cost(W,unaryb))
+            #return False, sudt
+            print(sudt)
+            print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
             print(sud)
-            print("Solution valid : ", valid)
         return valid, sud
 
 
@@ -381,11 +434,25 @@ class Sudoku_grounding_utils2:
     
     @staticmethod 
     def check_valid(query, target, info, W, unaryb =None, debug=1):
-        sud = Sudoku.Sudoku(W.shape[3])
+        print("nonzero costs : ", W.nonzero()[0].shape[0])
+        grid_size = W.shape[3]-1
+        sudt = Sudoku.Sudoku(grid_size)
+        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
+
+        sud = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
+        indexes_hints = np.where(sud.grid==grid_size+1)
+        sud.grid[indexes_hints] = info[indexes_hints]
         valid = sud.check_sudoku()
+
         if debug>=1:
-            print("Grid solved")
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",sudt.get_cost(W,unaryb))
+            #return False, sudt
+            print(sudt)
+            print("solved cost : ", sud.get_cost(W,unaryb))
             print(sud)
-            print("Solution valid : ", valid)
+            print("solved sudoku with hints is valid ?", valid)
+            print(sudh)
         return valid, sud
