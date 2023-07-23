@@ -6,6 +6,7 @@ import torchvision
 import pickle
 import Futoshi
 import Sudoku
+import Net
 import numpy as np
 
 class DataIterable:
@@ -479,12 +480,11 @@ class Sudoku_visual_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
-        self.nb_queries = queries.shape[0]
         self.nb_var, self.nb_val, nb_features = info
-        self.nb_features = nb_features+2*(self.nb_val) # we also give to the nn the values of known digits, else 0
+        self.nb_features = nb_features+2*(self.nb_val+1) # we also give to the nn the probabilities of handwritten digits
         #self.nb_val = self.nb_val+1
         shuffle_index = torch.randperm(queries.shape[0])
-        queries = torch.Tensor(queries)[shuffle_index].reshape(self.nb_queries, -1)
+        queries = torch.Tensor(queries)[shuffle_index].reshape(queries.shape[0], -1).int()
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
 
         # on cache les indices
@@ -533,20 +533,25 @@ class Sudoku_visual_utils:
                                      ]))
 
         img_table = -torch.ones((10, 10000, 1), dtype = torch.int)
+        img_sample = mnist_train_set[0][0]
+        max_images = 5000
+        mnist = torch.zeros(len(mnist_train_set),1,img_sample.shape[1], img_sample.shape[2])
         n_logits = torch.zeros(10, dtype = torch.int32)
         for idx, (img, label) in enumerate(mnist_train_set):
             img_table[label, n_logits[label]] = idx
             n_logits[label]+=1
-        min_logits = n_logits.min()
-        img_table = img_table[:,:min_logits]
-        self.img_table = img_table
-        self.mnist = mnist_train_set
+            mnist[idx]=img
+        self.mnist = mnist
 
         nbqueries = queries.shape[0]
-        ninfos = img_table[queries.int(),torch.randint(0,min_logits,(nbqueries,self.nb_var), dtype = torch.int)].squeeze(-1)
+        ninfos = img_table[queries.int(),torch.randint(0,max_images,(nbqueries,self.nb_var), dtype = torch.int)].squeeze(-1)
         #ninfo is a tensor containing for each cell and each sample a corresponding digit image id ( no digits correspond to a 0 )
         queries = torch.nn.functional.pad(queries.unsqueeze(2),(0,1))
         queries[:,:,1] = ninfos
+        self.queries = queries
+        self.lenet = Net.LeNet5(self.nb_val+1)
+        self.net = self.lenet
+        self.lenet.to(device)
 
                                                          
  
@@ -555,10 +560,13 @@ class Sudoku_visual_utils:
     def make_features(self,infos):
         nfeatures =  self.features.unsqueeze(0).repeat(self.batch_size,1,1,1);
         infos = infos.to(self.device)
-        one_hot_encode_hints = torch.zeros(self.batch_size,self.nb_var,self.nb_val)
-        indexes_hints = torch.where(infos[:,0]!=0)
-        nfeatures[:,:,:,4:4+self.nb_val-1]=one_hot_encode_hints[:,:,None,:]
-        nfeatures[:,:,:,4+self.nb_val-1:4+2*(self.nb_val-1)]=one_hot_encode_hints[:,None,:,:]
+        digits_to_process = infos[:,:,1].flatten()
+        digits_images = self.mnist[digits_to_process.cpu()].to(infos.device)
+        digits_logits = self.lenet(digits_images)
+
+        one_hot_encode_hints = digits_logits.reshape(self.batch_size,self.nb_var,self.nb_val+1)
+        nfeatures[:,:,:,4:4+self.nb_val+1]=one_hot_encode_hints[:,:,None,:]
+        nfeatures[:,:,:,4+self.nb_val+1:4+2*(self.nb_val+1)]=one_hot_encode_hints[:,None,:,:]
         return nfeatures
     
     @staticmethod 
@@ -609,36 +617,146 @@ class Sudoku_visual_utils:
 
 
 
-    class LeNet5(nn.Module):
+class Sudoku_visual_grounding_utils:
+    def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
+        file = open(path_to_data+"sudoku.pkl",'rb')
+        info, queries, targets=pickle.load(file)
+        self.nb_var, self.nb_val, nb_features = info
+        self.nb_features = nb_features+2*(self.nb_val+1) # we also give to the nn the probabilities of handwritten digits
+        self.nb_val = self.nb_val+1
+        shuffle_index = torch.randperm(queries.shape[0])
+        queries = torch.Tensor(queries)[shuffle_index].reshape(queries.shape[0], -1).int()
+        self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
 
-        def __init__(self, n_classes):
-            super(LeNet5, self).__init__()
-            
-            self.feature_extractor = nn.Sequential(            
-                nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, stride=1),
-                nn.Tanh(),
-                nn.AvgPool2d(kernel_size=2),
-                nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1),
-                nn.Tanh(),
-                nn.AvgPool2d(kernel_size=2),
-                nn.Conv2d(in_channels=16, out_channels=120, kernel_size=5, stride=1),
-                nn.Tanh()
-            )
-
-            self.classifier = nn.Sequential(
-                nn.Linear(in_features=120, out_features=84),
-                nn.Tanh(),
-                nn.Linear(in_features=84, out_features=n_classes),
-            )
+        # on cache les indices
+        self.targets[torch.where(queries.reshape(-1,self.nb_var)!=0)]=self.nb_val-1
+        self.device = device
 
 
-        def forward(self, x):
-            x = self.feature_extractor(x)
-            x = torch.flatten(x, 1)
-            logits = self.classifier(x)
-            probs = F.softmax(logits, dim=1)
+        #self.nb_features = nb_features+2*(nb_val-1) # we also give to the nn the values of known digits, else 0
+        self.batch_size = batch_size
+        self.train_size = train_size
+        self.validation_size = validation_size
+        self.test_size = test_size
+        
 
-            return logits # probs
+        grid_size = self.nb_val-1
+        features = torch.zeros((self.nb_var, self.nb_var, self.nb_features), device = device)
+        li = torch.linspace(0,1,grid_size)
+        for x in range(grid_size):
+            for y in range(grid_size):
+                i=y*grid_size+x
+                for x1 in range(grid_size):
+                    for y1 in range(grid_size):
+                        j=y1*grid_size+x1
+                        features[i,j,0]=li[y]
+                        features[i,j,1]=li[x]
+                        features[i,j,2]=li[y1]
+                        features[i,j,3]=li[x1]
+        self.features = features
+
+        ### MNIST
+
+        mnist_train_set = torchvision.datasets.MNIST('../Data_raw', train=True, download=True,
+                                     transform=torchvision.transforms.Compose([
+                                         torchvision.transforms.Resize((32, 32)),
+                                         torchvision.transforms.ToTensor(),
+                                         torchvision.transforms.Normalize(
+                                         (0.1307,), (0.3081,))
+                                     ]))
+
+        mnist_test_set = torchvision.datasets.MNIST('../Data_raw', train=False, download=True,
+                                     transform=torchvision.transforms.Compose([
+                                         torchvision.transforms.Resize((32, 32)),
+                                         torchvision.transforms.ToTensor(),
+                                         torchvision.transforms.Normalize(
+                                         (0.1307,), (0.3081,))
+                                     ]))
+
+        img_table = -torch.ones((10, 10000, 1), dtype = torch.int)
+        img_sample = mnist_train_set[0][0]
+        max_images = 5000
+        mnist = torch.zeros(len(mnist_train_set),1,img_sample.shape[1], img_sample.shape[2])
+        n_logits = torch.zeros(10, dtype = torch.int32)
+        for idx, (img, label) in enumerate(mnist_train_set):
+            img_table[label, n_logits[label]] = idx
+            n_logits[label]+=1
+            mnist[idx]=img
+        self.mnist = mnist
+
+        nbqueries = queries.shape[0]
+        ninfos = img_table[queries.int(),torch.randint(0,max_images,(nbqueries,self.nb_var), dtype = torch.int)].squeeze(-1)
+        #ninfo is a tensor containing for each cell and each sample a corresponding digit image id ( no digits correspond to a 0 )
+        queries = torch.nn.functional.pad(queries.unsqueeze(2),(0,1))
+        queries[:,:,1] = ninfos
+        self.queries = queries
+        self.lenet = Net.LeNet5(self.nb_val)
+        self.net = self.lenet
+        self.lenet.to(device)
+
+                                                         
+ 
+
+
+    def make_features(self,infos):
+        nfeatures =  self.features.unsqueeze(0).repeat(self.batch_size,1,1,1);
+        infos = infos.to(self.device)
+        digits_to_process = infos[:,:,1].flatten()
+        digits_images = self.mnist[digits_to_process.cpu()].to(infos.device)
+        digits_logits = self.lenet(digits_images)
+
+        one_hot_encode_hints = digits_logits.reshape(self.batch_size,self.nb_var,self.nb_val)
+        nfeatures[:,:,:,4:4+self.nb_val]=one_hot_encode_hints[:,:,None,:]
+        nfeatures[:,:,:,4+self.nb_val:4+2*(self.nb_val)]=one_hot_encode_hints[:,None,:,:]
+        return nfeatures
+
+    @staticmethod 
+    def check_valid(query, target, info, W, unaryb =None, debug=1):
+        print("nonzero costs : ", W.nonzero()[0].shape[0])
+        grid_size = W.shape[3]-1
+        sudt = Sudoku.Sudoku(grid_size)
+        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
+
+        sud = Sudoku.Sudoku(grid_size)
+        sudh = Sudoku.Sudoku(grid_size)
+        sud.solve(W, unaryb, debug = (debug>1))
+        sudh.grid = sud.grid.copy()
+        indexes_hints = np.where(sud.grid==grid_size+1)
+        sudh.grid[indexes_hints] = info[indexes_hints]
+        valid = sudh.check_sudoku()
+
+        if debug>=1:
+            print("SOLVER RETURNED")
+            print("nonzero costs : ", W.nonzero()[0].shape[0])
+            print("target cost : ",sudt.get_cost(W,unaryb))
+            #return False, sudt
+            print(sudt)
+            print("solved cost : ", sud.get_cost(W,unaryb))
+            print(sud)
+            print("solved sudoku with hints is valid ?", valid)
+            print(sudh)
+        return valid, sud
+
+
+    def get_data(self, validation = False, test = False):
+        queries = None
+        targets = None
+        train_size = self.train_size
+        test_size = self.test_size
+        validation_size = self.validation_size
+        batch_size = self.batch_size
+
+        if validation:
+            queries = self.queries[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
+            targets = self.targets[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
+        elif test:
+            queries = self.queries[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
+            targets = self.targets[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
+        else:
+            queries = self.queries[:train_size*batch_size]
+            targets = self.targets[:train_size*batch_size]
+
+        return DataIterable(queries,targets,self.batch_size, queries_transform_ft = self.make_features)
 
 
 

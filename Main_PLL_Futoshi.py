@@ -50,7 +50,12 @@ def train_PLL(args, game_utils, device):
     #model = Net.VerySimpleNet(81,9,4, device)
     #instanciate optimizer and scheduler
     model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), 
+    if hasattr(game_utils, "net"):
+        optimizer = torch.optim.Adam(list(model.parameters())+ list(game_utils.net.parameters()), 
+                                 lr=args.lr, 
+                                 weight_decay=args.weight_decay)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), 
                                  lr=args.lr, 
                                  weight_decay=args.weight_decay)
 
@@ -155,8 +160,9 @@ def train_PLL(args, game_utils, device):
                 print("DEBUG")
                 
                 #print(y_true[0].reshape(9,9)+1)
-                #print(infos[0].reshape(9,9)+1)
-                print(queries[0,3,23])
+                print(infos[0,:,0].reshape(9,9))
+                print(target[0,:].reshape(9,9)+1)
+                print(queries[0,0,3])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
                 print(W[0,3,13].cpu().detach().numpy().round(2))
                 print(W[0,3,23].cpu().detach().numpy().round(2))
@@ -239,10 +245,10 @@ def main():
     argparser.add_argument("--nblocks", type=int, default=5, help="number of blocks of 2 layers in ResNet") 
     argparser.add_argument("--epoch_max", type=int, default=200, help="maximum number of epochs") 
     argparser.add_argument("--lr", type=float, default=0.001, help="learning rate") 
-    argparser.add_argument("--weight_decay", type=float, default=0.0001, help="weight_decay") 
+    argparser.add_argument("--weight_decay", type=float, default=0, help="weight_decay") 
     argparser.add_argument("--reg_term", type=float, default=0, help="L1 regularization on costs")
     argparser.add_argument("--reg_term_unary", type=float, default=0, help="L1 regularization on unary")
-    argparser.add_argument("--unary", type=int, default=0, help="Use unary costs")
+    argparser.add_argument("--unary", type=int, default=1, help="Use unary costs")
     argparser.add_argument("--k", type=int, default=40, help="E-PLL parameter") 
     argparser.add_argument("--batch_size", type=int, default=8, help="training batch size") 
     argparser.add_argument("--train_size", type=int, default=1000, help="number of training samples") 
@@ -282,6 +288,10 @@ def main():
     elif args.game_type =="Sudoku_visual":
         game_utils = Game_utils.Sudoku_visual_utils(train_size = args.train_size, validation_size = args.valid_size,
                                               test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
+    elif args.game_type =="Sudoku_visual_grounding":
+        game_utils = Game_utils.Sudoku_visual_grounding_utils(train_size = args.train_size, validation_size = args.valid_size,
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
+
 
 
 

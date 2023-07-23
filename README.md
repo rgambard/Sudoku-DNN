@@ -1,1 +1,5 @@
-python3 -m pdb  Main_PLL_Futoshi.py --saved_dict model_sudoku_grounding.pk --save_path  --game_type Sudoku_grounding --batch_size 7 --unary 1 --reg_term 0 --reg_term_unary 0 --k 40 --epoch_max 0 --test_size 20 --weight_decay 0 --threshold 4
+Pour effectuer le test avec le sudoku symbolique, en mode grounding : 
+python3 Main_PLL_Futoshi.py --saved_dict "model_sudoku_grounding.pk" --save_path ""  --game_type Sudoku_grounding --epoch_max 0 --test_size 20 --threshold 4
+Pour effectuer l'entrainement avec le sudoku visuel, en mode grounding :
+ 
+python3 Main_PLL_Futoshi.py --save_path "model_sudoku_visual_grounding.pk" --game_type Sudoku_visual_grounding --epoch_max 1000
