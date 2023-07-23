@@ -273,16 +273,16 @@ def main():
     elif args.game_type =="Sudoku":
         game_utils = Game_utils.Sudoku_utils(train_size = args.train_size, validation_size = args.valid_size,
                                               test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
+    elif args.game_type =="Sudoku_hints":
+        game_utils = Game_utils.Sudoku_hints_utils(train_size = args.train_size, validation_size = args.valid_size,
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
     elif args.game_type =="Sudoku_grounding":
         game_utils = Game_utils.Sudoku_grounding_utils(train_size = args.train_size, validation_size = args.valid_size,
-                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data)
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
+    elif args.game_type =="Sudoku_visual":
+        game_utils = Game_utils.Sudoku_visual_utils(train_size = args.train_size, validation_size = args.valid_size,
+                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
 
-    elif args.game_type =="Sudoku_grounding1":
-        game_utils = Game_utils.Sudoku_grounding_utils1(train_size = args.train_size, validation_size = args.valid_size,
-                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
-    elif args.game_type =="Sudoku_grounding2":
-        game_utils = Game_utils.Sudoku_grounding_utils2(train_size = args.train_size, validation_size = args.valid_size,
-                                              test_size = args.test_size, batch_size = args.batch_size, path_to_data = args.path_to_data, device=device)
 
 
 

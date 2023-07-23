@@ -202,7 +202,7 @@ class Sudoku_utils:
             print(sud)
         return valid, sud
 
-
+"""
 class Sudoku_grounding_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
         file = open(path_to_data+"sudoku.pkl",'rb')
@@ -281,12 +281,12 @@ class Sudoku_grounding_utils:
             print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
             print(sud)
         return valid, sud
+"""
 
 
 
 
-
-class Sudoku_grounding_utils1:
+class Sudoku_hints_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
@@ -360,7 +360,7 @@ class Sudoku_grounding_utils1:
         sud = Sudoku.Sudoku(grid_size)
         sudh = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        sudh.grid = sud.grid
+        sudh.grid = sud.grid.clone()
         indexes_hints = np.where(info.reshape(grid_size,grid_size)!=0)
         sudh.grid[indexes_hints] = info[indexes_hints]
         valid = sudh.check_sudoku()
@@ -379,7 +379,7 @@ class Sudoku_grounding_utils1:
 
 
 
-class Sudoku_grounding_utils2:
+class Sudoku_grounding_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
@@ -457,7 +457,7 @@ class Sudoku_grounding_utils2:
         sud = Sudoku.Sudoku(grid_size)
         sudh = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        sudh.grid = sud.grid
+        sudh.grid = sud.grid.clone()
         indexes_hints = np.where(sud.grid==grid_size+1)
         sudh.grid[indexes_hints] = info[indexes_hints]
         valid = sudh.check_sudoku()
@@ -481,13 +481,13 @@ class Sudoku_visual_utils:
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, nb_features = info
         self.nb_features = nb_features+2*(self.nb_val) # we also give to the nn the values of known digits, else 0
-        self.nb_val = self.nb_val+1
+        #self.nb_val = self.nb_val+1
         shuffle_index = torch.randperm(queries.shape[0])
         self.queries = torch.Tensor(queries)[shuffle_index]
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
 
         # on cache les indices
-        self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val-1
+        #self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val-1
         self.device = device
 
 
@@ -534,6 +534,7 @@ class Sudoku_visual_utils:
                                                     shuffle=True)
         for idx, (img, label) in enumerate(mnist_train_set):
             img_table[label, np.argmin(img_table[label]!=-1)] = idx
+        breakpoint()
                                                          
  
 
@@ -576,7 +577,7 @@ class Sudoku_visual_utils:
 
         sud = Sudoku.Sudoku(grid_size)
         sud.solve(W, unaryb, debug = (debug>1))
-        indexes_hints = np.where(sud.grid==grid_size+1)
+        indexes_hints = np.where(info!=0)
         sud.grid[indexes_hints] = info[indexes_hints]
         valid = sud.check_sudoku()
 
@@ -592,6 +593,7 @@ class Sudoku_visual_utils:
             print(sudh)
         return valid, sud
         #taken from https://towardsdatascience.com/implementing-yann-lecuns-lenet-5-in-pytorch-5e05a0911320
+
     class LeNet5(nn.Module):
 
         def __init__(self, n_classes):

@@ -17,7 +17,7 @@ import pickle
 from CFN import *
 #import pytoulbar2 as tb2
 
-def make_CFN(W, unary = None, top=999999, resolution = 1, backtrack = 500000, allSolutions = 0, verbose = -1):
+def make_CFN(W, unary = None, top=999999, resolution = 1, backtrack = 5000000, allSolutions = 0, verbose = -1):
     
     Problem = CFN(top, resolution, vac=True, backtrack=backtrack, allSolutions = allSolutions, verbose = verbose)
     #Problem = tb2.CFN(top, resolution, vac=True)
