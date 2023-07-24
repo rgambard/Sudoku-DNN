@@ -145,6 +145,7 @@ def train_PLL(args, game_utils, device):
         #print(nb_save)
         test_loss = 0
         # VALIDATION
+        debug = False
         data_iterator = game_utils.get_data(validation=True) 
         for batch_idx in range(args.valid_size): 
             queries, target, infos = next(data_iterator)
@@ -154,7 +155,7 @@ def train_PLL(args, game_utils, device):
             PLL = -EPLL_utils.PLL_all(W, y_true, hints_logit = unary)
             loss = PLL #+ args.reg_term * L1
             test_loss += loss.item()
-            if(batch_idx == 0):
+            if(batch_idx == 0 && debug):
                 print("DEBUG")
                 
                 #print(y_true[0].reshape(9,9)+1)
