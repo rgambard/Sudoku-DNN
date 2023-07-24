@@ -99,7 +99,7 @@ def train_PLL(args, game_utils, device):
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
             
             #PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
-            PLL1 = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
+            PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=unary)
             PLL=PLL1
             PLL_epoch += PLL.item()
             PLL1_epoch += PLL1.item()
@@ -151,14 +151,14 @@ def train_PLL(args, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             W, unary = model(NN_input, device, unary = args.unary)
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
-            PLL = -EPLL_utils.PLL_all(W, y_true, hints_logit = unary)
+            PLL = -EPLL_utils.PLL_all2(W, y_true, hints_logit = unary)
             loss = PLL #+ args.reg_term * L1
             test_loss += loss.item()
             if(batch_idx == 0 and args.debug>0):
                 print("DEBUG")
                 
                 #print(y_true[0].reshape(9,9)+1)
-                print(infos[0,:].reshape(9,9))
+                print(infos[0,:,0].reshape(9,9))
                 print(target[0,:].reshape(9,9)+1)
                 print(queries[0,0,3])
                 print(W[0,3,4].cpu().detach().numpy().round(2))

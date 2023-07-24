@@ -81,7 +81,7 @@ def get_random_perms(nb_val, masks, device, nb_rand_perms=20):
     rand_perms = all_perms[rand_perms_indexes]
     return rand_perms
     
-def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None,missing=None, val=False):
+def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 500, nb_rand_perms=200, mask_width = 2 ,hints_logit = None,missing=None, val=False):
     if val is not False:
         print("val not implemented !!!")
     nb_val = int(W.shape[2]**0.5)
@@ -169,7 +169,7 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
     return(PLL)
 
 
-def PLL_all(W, y_true, nb_neigh = 0, T = 1, hints_logit = None, perr = 0):
+def PLL_all(W, y_true, nb_neigh = 0, T = 1, hints_logit = None):
 
     """
     Compute the total PLL loss over all variables and all batch samples
@@ -184,13 +184,7 @@ def PLL_all(W, y_true, nb_neigh = 0, T = 1, hints_logit = None, perr = 0):
     nb_var = W.shape[1]
     bs = W.shape[0]
     nb_val = W.shape[3]
-    if perr > 0 :
-        r = torch.rand(nb_var)
-        thresh = r<perr
-        rand_val = torch.randint(0,nb_val,(bs,thresh.sum().item(),)).to(y_true.device)
-        y_true[:,thresh] = rand_val
-
-    y_indices = (y_true-1).unsqueeze(-1).expand(bs,nb_var, nb_val).unsqueeze(1)
+    y_indices = (y_true).unsqueeze(-1).expand(bs,nb_var, nb_val).unsqueeze(1)
     Wr = W.reshape(bs, nb_var, nb_var, nb_val, nb_val)
 
     L_cost = Wr[torch.arange(bs)[:, None, None, None],
