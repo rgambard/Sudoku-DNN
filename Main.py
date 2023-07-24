@@ -155,7 +155,7 @@ def train_PLL(args, game_utils, device):
             PLL = -EPLL_utils.PLL_all(W, y_true, hints_logit = unary)
             loss = PLL #+ args.reg_term * L1
             test_loss += loss.item()
-            if(batch_idx == 0 && debug):
+            if(batch_idx == 0 and debug):
                 print("DEBUG")
                 
                 #print(y_true[0].reshape(9,9)+1)
