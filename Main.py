@@ -145,7 +145,6 @@ def train_PLL(args, game_utils, device):
         #print(nb_save)
         test_loss = 0
         # VALIDATION
-        debug = False
         data_iterator = game_utils.get_data(validation=True) 
         for batch_idx in range(args.valid_size): 
             queries, target, infos = next(data_iterator)
@@ -155,7 +154,7 @@ def train_PLL(args, game_utils, device):
             PLL = -EPLL_utils.PLL_all(W, y_true, hints_logit = unary)
             loss = PLL #+ args.reg_term * L1
             test_loss += loss.item()
-            if(batch_idx == 0 and debug):
+            if(batch_idx == 0 and args.debug>0):
                 print("DEBUG")
                 
                 #print(y_true[0].reshape(9,9)+1)
@@ -260,6 +259,7 @@ def main():
     argparser.add_argument("--scheduler_patience", type=int, default=5, help="lr scheduler patience") 
     argparser.add_argument("--min_lr", type=int, default=10e-6, help="min lr after which the training stops") 
     argparser.add_argument("--threshold", type=float, default=3, help="thresholding of the cost matrix to help the solver") 
+    argparser.add_argument("--debug", type=int, default=0, help="verbose level") 
  
     args = argparser.parse_args()    
 
