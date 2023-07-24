@@ -692,7 +692,6 @@ class Sudoku_visual_grounding_utils:
         self.queries = queries
         self.lenet = Net.LeNet5(self.nb_val)
         self.net = self.lenet
-        self.lenet.to(device)
 
                                                          
  
@@ -722,7 +721,7 @@ class Sudoku_visual_grounding_utils:
         sud.solve(W, unaryb, debug = (debug>1))
         sudh.grid = sud.grid.copy()
         indexes_hints = np.where(sud.grid==grid_size+1)
-        sudh.grid[indexes_hints] = info[indexes_hints]
+        sudh.grid[indexes_hints] = info[indexes_hints[0], indexes_hints[1], 0]
         valid = sudh.check_sudoku()
 
         if debug>=1:

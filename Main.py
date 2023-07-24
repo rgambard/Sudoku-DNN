@@ -42,6 +42,8 @@ def train_PLL(args, game_utils, device):
     size_all_mb = (param_size + buffer_size) / 1024**2
     print('model size: {:.3f}MB'.format(size_all_mb))
 
+    if hasattr(game_utils, "net"):
+        model.net = game_utils.net
     #load saved model if instructed to do so
     if args.saved_dict!="":
         print("loading model from disk", args.saved_dict)
@@ -49,13 +51,9 @@ def train_PLL(args, game_utils, device):
 
     #model = Net.VerySimpleNet(81,9,4, device)
     #instanciate optimizer and scheduler
+
     model.to(device)
-    if hasattr(game_utils, "net"):
-        optimizer = torch.optim.Adam(list(model.parameters())+ list(game_utils.net.parameters()), 
-                                 lr=args.lr, 
-                                 weight_decay=args.weight_decay)
-    else:
-        optimizer = torch.optim.Adam(model.parameters(), 
+    optimizer = torch.optim.Adam(model.parameters(), 
                                  lr=args.lr, 
                                  weight_decay=args.weight_decay)
 
