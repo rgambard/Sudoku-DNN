@@ -713,6 +713,7 @@ class Sudoku_visual_grounding_utils:
     def check_valid(query, target, info, W, unaryb =None, debug=1):
         print("nonzero costs : ", W.nonzero()[0].shape[0])
         grid_size = W.shape[3]-1
+        info = info.reshape(grid_size,grid_size,2)
         sudt = Sudoku.Sudoku(grid_size)
         sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
 

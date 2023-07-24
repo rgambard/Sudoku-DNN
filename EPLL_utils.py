@@ -7,10 +7,11 @@ import math
 import timeit
 from random import sample
 
-def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, epll =False):
+def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, idx_pairs=None):
     device = y_true.device
     bs, nb_masks, nb_var= y_true.shape
     bs, nb_masks,nb_rand_y, mask_width = rand_y.shape
+    bs, nb_masks, nb_complementary = masks_complementary.shape
 
     y_true_masked = y_true[torch.arange(bs, device = device)[:,None, None], torch.arange(nb_masks, device = device)[None,:,None], masks[:,:,:]]
     rand_y = y_true_masked[:,:,None,:] + rand_y
@@ -18,15 +19,15 @@ def get_indexes_torch(y_true, nb_val,  masks, rand_y, masks_complementary, epll 
     
 
     nb_joint_indexes = math.comb(mask_width,2)
-    nb_nonjoint_indexes = mask_width*(nb_var-mask_width)
+    nb_nonjoint_indexes = mask_width*(nb_complementary)
     nb_indexes = nb_joint_indexes + nb_nonjoint_indexes
-    final_indexes = torch.zeros((bs, nb_masks, nb_rand_y, nb_indexes, 5), dtype = torch.int8, device = device)
+    final_indexes = torch.zeros((bs, nb_masks, nb_rand_y, nb_indexes, 5), dtype = torch.int, device = device)
 
     #rand_y = rng.integers(0,nb_val,(bs,nb_mask, 1+nb_rand_y, mask_width))
     #rand_y[:,:,0] = y_true[np.arange(bs)[:,None,None],masks[None,:,:]]
 
-    indexes = torch.zeros((bs,nb_masks,nb_rand_y,mask_width,nb_var-mask_width,4), dtype = torch.int8, device = device)
-    diag_indexes = torch.zeros((bs,nb_masks,nb_rand_y,mask_width,mask_width,4), dtype = torch.int8, device = device)
+    indexes = torch.zeros((bs,nb_masks,nb_rand_y,mask_width,nb_complementary,4), dtype = torch.int, device = device)
+    diag_indexes = torch.zeros((bs,nb_masks,nb_rand_y,mask_width,mask_width,4), dtype = torch.int, device = device)
 
     indexes[:,:,:,:,:,0] = masks[:,:,None,:,None]
     indexes[:,:,:,:,:,1] = masks_complementary[:,:,None,None,:]
@@ -77,13 +78,14 @@ def get_random_perms(nb_val, masks, device, nb_rand_perms=20):
     rand_perms = all_perms[rand_perms_indexes]
     return rand_perms
     
-def new_PLL2(W, y_true, nb_neigh = 0, T=1,   nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None, idx_pairs = None):
-    breakpoint()
-    nb_val = W.shape[2]**0.5
+def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None,missing=None, val=False):
+    if val is not False:
+        print("val not implemented !!!")
+    nb_val = int(W.shape[2]**0.5)
     W = W.reshape(1, W.shape[0], W.shape[1],nb_val, nb_val)
     y_true = y_true.unsqueeze(0)
     idx_pairs = idx_pairs.unsqueeze(0)
-    PLL_all2(W, y_true, nb_neigh = nb_neigh, T=T,   nb_rand_masks = nb_rand_masks, nb_rand_perms=nb_rand_perms, mask_width = mask_width ,hints_logit = hints_logits, idx_pairs =idx_pairs)
+    return PLL_all2(W, y_true, nb_neigh = nb_neigh, T=T,   nb_rand_masks = nb_rand_masks, nb_rand_perms=nb_rand_perms, mask_width = mask_width ,hints_logit = hints_logit, idx_pairs =idx_pairs)
 
 #r_ind = get_indexes_torch(y_true, nb_val, masks, r_rand)
 def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None, idx_pairs = None):
@@ -113,27 +115,32 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
         masks = rand_indexes[...,:mask_width]
         masks_complementary = rand_indexes[...,mask_width:]
     else:
-        nb_neigh = idx_pairs.shape[2]
-        rand_indexes = torch.rand((bs, nb_rand_masks, nb_var), device = y_true.device).argsort(dim=-1)
-        masks[:,:,0] = rand_indexes[...,:1]
-        rand_indexes_neigh = torch.rand((bs, nb_rand_masks, nb_neigh-1), device = y_true.device).argsort(dim=-1)+1
-        masks[:,:,1:] = idx_pairs[rand_indexes_comp[...,:mask_width-1]]
-        masks_complementary = idx_pairs[rand_indexes_comp[...,mask_width-1:]+1]
+        nb_pairs = idx_pairs.shape[2]
+        rand_indexes = torch.rand((bs, nb_rand_masks, nb_var), device = device).argsort(dim=-1)
+        masks = torch.zeros((bs,nb_rand_masks, mask_width), dtype = torch.int, device = device)
+        masks[:,:,0] = rand_indexes[...,0]
+        rand_indexes_neigh = torch.rand((bs, nb_rand_masks, nb_pairs), device = device).argsort(dim=-1)
+        masks[:,:,1:] = idx_pairs[torch.arange(bs, device = device)[:,None,None], masks[:,:,:1],rand_indexes_neigh[...,:mask_width-1]]
+        #masks_complementary = idx_pairs[torch.arange(bs, device = device)[:,None,None],masks[:,:,:1] ,rand_indexes_neigh[...,mask_width-1:]]
+        masks_complementary = rand_indexes_neigh[...,mask_width-1:]
+
+    nb_complementary = masks_complementary.shape[2]
+    breakpoint()
 
 
     if hints_logit is not None:# hints_logit is not None:
         #breakpoint()
         nb_var = nb_var+1 # add 1 additionnal variable that represents hints
-        Wpad = torch.nn.functional.pad(W,(0,0,0,0,0,1,0,1))
+        Wpad = torch.nn.functional.pad(W,(0,0,0,0,0,1))
         masks_complementary = torch.nn.functional.pad(masks_complementary,(0,1),value = nb_var-1)
         y_mod = torch.nn.functional.pad(y_mod,(0,1),value = 0)
-        Wpad[:,:-1,nb_var-1,:nb_val,0] = hints_logit[:,:]
+        Wpad[:,:,nb_var-1,:,0] = hints_logit[:,:]
         W = Wpad
 
     if nb_neigh != 0:
         # ajout de la valeur regulatrice, de coût 0
-        Wpad = torch.nn.functional.pad(W,(0,1,0,1))
-        randindexes = torch.rand((bs,nb_rand_masks,nb_var-mask_width), device = device).argsort(dim=-1)[...,:nb_neigh]
+        Wpad = torch.nn.functional.pad(W,(0,1))
+        randindexes = torch.rand((bs,nb_rand_masks,nb_complementary), device = device).argsort(dim=-1)[...,:nb_neigh]
         randindexes = masks_complementary[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes]
         y_mod[torch.arange(bs, device = device)[:,None,None],torch.arange(nb_rand_masks, device = device)[None,:,None],randindexes] = nb_val
         W = Wpad
