@@ -86,14 +86,6 @@ def train_PLL(args, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
             W, unary = model(NN_input, device, unary = args.unary)
-            W = W
-            #print(W[0,0,1,0],W[0,0,2,0])
-
-            nb_var = W.shape[1]
-            nb_val = W.shape[3]
-            bs = W.shape[0]
-
-            Wr = W.reshape(bs, nb_var, nb_var, nb_val,nb_val)
             L1 = torch.linalg.vector_norm(W, ord = 1)  # L1 penalty on predicted cost
             #L1 = torch.sum(torch.abs(W)*(torch.abs(W)>3))
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
@@ -158,7 +150,7 @@ def train_PLL(args, game_utils, device):
                 print("DEBUG")
                 
                 #print(y_true[0].reshape(9,9)+1)
-                print(infos[0,:,0].reshape(9,9))
+                print(infos[0,:].reshape(9,9))
                 print(target[0,:].reshape(9,9)+1)
                 print(queries[0,0,3])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
@@ -210,6 +202,8 @@ def test(args, model, game_utils, device):
             y_true = target.type(torch.LongTensor).to(device)
             
             W, unary = model(NN_input, device, unary = args.unary)
+            unary = unary-unary.min(axis=-1)[0].detach()[:,:,None]
+            W =W -W.min(axis=-1)[0].min(axis=-1)[0].detach()[:,:,:,None,None]
             Wb = W[0].cpu().detach().numpy()
             unaryd = unary[0].cpu().detach().numpy()
             Wb = Wb*(Wb>args.threshold)

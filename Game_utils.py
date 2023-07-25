@@ -292,24 +292,25 @@ class Sudoku_hints_utils:
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, nb_features = info
-        self.nb_val = self.nb_val+1
+        #self.nb_val = self.nb_val+1
         shuffle_index = torch.randperm(queries.shape[0])
         self.queries = torch.Tensor(queries)[shuffle_index]
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
         # on cache les indices
-        self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val
+        #self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val
 
 
         #self.nb_features = nb_features+2*(nb_val-1) # we also give to the nn the values of known digits, else 0
-        self.nb_features = nb_features+2 # we also give to the nn the values of known digits, else 0
+        self.nb_features = nb_features+2*self.nb_val # we also give to the nn the values of known digits, else 0
         self.batch_size = batch_size
         self.train_size = train_size
         self.validation_size = validation_size
         self.test_size = test_size
+        self.device = device
         
 
         grid_size = self.nb_val-1
-        features = torch.zeros((self.nb_var, self.nb_var, nb_features+2))
+        features = torch.zeros((self.nb_var, self.nb_var, self.nb_features), device = device)
         li = torch.linspace(0,1,grid_size)
         for x in range(grid_size):
             for y in range(grid_size):
@@ -346,9 +347,11 @@ class Sudoku_hints_utils:
 
 
     def make_features(self,infos):
+        infos = infos.to(self.device)
         nfeatures =  self.features.unsqueeze(0).repeat(infos.shape[0],1,1,1);
-        nfeatures[:,:,:,5]=infos.reshape(infos.shape[0],-1).unsqueeze(1)/9
-        nfeatures[:,:,:,4]=infos.reshape(infos.shape[0],-1).unsqueeze(2)/9
+        one_hot_encode_hints = (infos.reshape(self.batch_size,-1)[:,:,None]==torch.arange(1,self.nb_val+1, device = self.device)[None,None,:])
+        nfeatures[:,:,:,4:4+self.nb_val]=one_hot_encode_hints[:,:,None,:]
+        nfeatures[:,:,:,4+self.nb_val:4+2*(self.nb_val)]=one_hot_encode_hints[:,None,:,:]
         return nfeatures
         
     @staticmethod 
