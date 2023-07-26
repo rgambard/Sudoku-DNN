@@ -81,7 +81,7 @@ def get_random_perms(nb_val, masks, device, nb_rand_perms=20):
     rand_perms = all_perms[rand_perms_indexes]
     return rand_perms
     
-def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 500, nb_rand_perms=200, mask_width = 2 ,unary_costs= None,missing=None, val=False):
+def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 300, nb_rand_perms=100, mask_width = 2 ,unary_costs= None,missing=None, val=False):
     if val is not False:
         print("val not implemented !!!")
     nb_val = int(W.shape[2]**0.5)
@@ -141,7 +141,7 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
         masks_complementary_d2 = torch.nn.functional.pad(masks_complementary_d2,(0,1),value = nb_complementary)
         masks_complementary = torch.nn.functional.pad(masks_complementary,(0,1),value = nb_var-1)
         y_mod = torch.nn.functional.pad(y_mod,(0,1),value = 0)
-        Wpad[:,:,nb_var-1,:,0] = hints_logit[:,:]
+        Wpad[:,:,nb_complementary,:,0] = hints_logit[:,:]
         W = Wpad
 
     if nb_neigh != 0:

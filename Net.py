@@ -161,8 +161,8 @@ class Net(nn.Module):
         out[:,t[0],t[1]] = pred
         pred = torch.swapaxes(pred,2,3)
         out[:,t[1],t[0]] = pred
-        predu = predu-predu.min(axis=-1)[0].detach()[:,:,None]
-        out = out-out.min(axis=-1)[0].min(axis=-1)[0].detach()[:,:,:,None,None]
+        #predu = predu-predu.min(axis=-1)[0].detach()[:,:,None]
+        #out = out-out.min(axis=-1)[0].min(axis=-1)[0].detach()[:,:,:,None,None]
         return(out, predu) 
 
 
