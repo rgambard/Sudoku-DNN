@@ -82,16 +82,16 @@ def get_random_perms(nb_val, masks, device, nb_rand_perms=20):
     return rand_perms
     
 def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 300, nb_rand_perms=100, mask_width = 2 ,unary_costs= None,missing=None, val=False):
-    if val is not False:
-        print("val not implemented !!!")
+    if missing is not None:
+        print("missing not implemented !!!")
     nb_val = int(W.shape[2]**0.5)
     W = W.reshape(1, W.shape[0], W.shape[1],nb_val, nb_val)
     y_true = y_true.unsqueeze(0)
     idx_pairs = idx_pairs.unsqueeze(0)
-    return PLL_all2(W, y_true, nb_neigh = nb_neigh, T=T,   nb_rand_masks = nb_rand_masks, nb_rand_perms=nb_rand_perms, mask_width = mask_width ,hints_logit = unary_costs, idx_pairs =idx_pairs)
+    return PLL_all2(W, y_true, nb_neigh = nb_neigh, T=T,   nb_rand_masks = nb_rand_masks, nb_rand_perms=nb_rand_perms, mask_width = mask_width ,hints_logit = unary_costs, idx_pairs =idx_pairs, val =val)
 
 #r_ind = get_indexes_torch(y_true, nb_val, masks, r_rand)
-def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None, idx_pairs = None):
+def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=30, mask_width = 2 ,hints_logit = None, idx_pairs = None, val = False):
     #global r_rand, masks, er_rand, masks_complementary
     """
     Compute the total PLL loss over all variables and all batch samples
@@ -165,6 +165,10 @@ def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_perms=
     log_cost = torch.logsumexp(cost_for_each_y, dim=2)
 
     PLL = torch.sum(cost_for_each_y[:,:,0]-log_cost)
+    if val: # compute accuracy
+        pred = cost_for_each_y.argmax(dim=2)
+        acc = (pred == 0).sum()/nb_rand_masks
+        return acc, PLL 
 
     return(PLL)
 
