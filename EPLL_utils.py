@@ -128,7 +128,7 @@ def new_PLL(W,idx_pairs,y_true, nb_neigh = 0, T=1,   nb_rand_masks = 500, nb_ran
     idx_pairs = idx_pairs.unsqueeze(0)
     return PLL_all2(W, y_true, nb_neigh = nb_neigh, T=T,   nb_rand_masks = nb_rand_masks, nb_rand_tuples=nb_rand_tuples, mask_width = mask_width ,hints_logit = unary_costs, idx_pairs =idx_pairs, val =val)
 
-def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_tuples=30, mask_width = 4 ,hints_logit = None, idx_pairs = None, val = False):
+def PLL_all2(W, y_true, nb_neigh = 0, T = 1, nb_rand_masks = 100, nb_rand_tuples=30, mask_width = 2,hints_logit = None, idx_pairs = None, val = False):
     """
     Compute the total stochastic PLL loss over all variables and all batch samples
 

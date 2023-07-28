@@ -93,9 +93,10 @@ class Futoshi_utils:
 
     @staticmethod 
     def check_valid(query, target, info, W, unaryb =None, debug=1):
-        fut = Futoshi.Futoshi(self.nb_val,ine=query[:,:,4])
-        fut_sol = Futoshi.Futoshi(self.nb_val,ine=query[:,:,4])
-        fut_sol.grid = target.reshape(self.nb_val,self.nb_val).astype(np.int8)+1
+        grid_size = W.shape[3]
+        fut = Futoshi.Futoshi(grid_size,ine=query[:,:,4])
+        fut_sol = Futoshi.Futoshi(grid_size,ine=query[:,:,4])
+        fut_sol.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
         Wb = W
         fut.solve(Wb, unaryb, debug = (debug>1))
         valid = fut.check_validity()
@@ -107,12 +108,13 @@ class Futoshi_utils:
             print("SOLVER RETURNED")
             print("nonzero costs : ", W.nonzero()[0].shape[0])
             print("target cost : ",fut_sol.get_cost(W,unaryb))
-            #return False, sudt
             print(fut_sol)
             print("solved valid ", valid, " cost : ", fut.get_cost(W,unaryb))
             print(fut)
 
         return valid, fut
+
+
 
 class Sudoku_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 100, batch_size = 10, path_to_data = "databases/", device = "cpu" ):

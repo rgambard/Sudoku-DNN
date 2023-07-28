@@ -57,7 +57,7 @@ def solver(W,unary=None, solution=None, random=False, top=999999, resolution = 1
         Problem.SetUB(10**(-resolution))
 
     sol = Problem.Solve()
-    print(sol)
+    #print(sol)
     #if (sol == None) or sol[0][0] == 10:
     #    return(random_solver(W, sudoku_in_line))
     

@@ -87,7 +87,7 @@ def train_PLL(args, game_utils, device):
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
             
             #PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
-            PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=unary)
+            PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=unary, mask_width=args.order, nb_rand_masks = args.nb_rand_masks, nb_rand_tuples = args.nb_rand_tuples)
             PLL=PLL1
             PLL_epoch += PLL.item()
             PLL1_epoch += PLL1.item()
@@ -181,7 +181,7 @@ def test(args, model, game_utils, device):
             Wb = W[0].cpu().detach().numpy()
             unaryd = unary[0].cpu().detach().numpy()
             Wb = Wb*(Wb>args.threshold)
-            proc = executor.submit(solve_parallel,game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
+            proc = executor.submit(solve_parallel,game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd, debug = args.debug)
             processes.append(proc)
         print(" Collecting results ( be patient )")
         for process_idx in tqdm(range(args.test_size)):
@@ -190,11 +190,11 @@ def test(args, model, game_utils, device):
 
     result = np.array(results)
     print("Test done, games succesfully solved : ", np.sum(result),"on", args.test_size)
-    print(results)
+    #print(results)
     return results
 
-def solve_parallel (check_valid_ft, query, target, info, W, unary):
-    ret, game = check_valid_ft(query, target, info, W, unary, debug=2)
+def solve_parallel (check_valid_ft, query, target, info, W, unary, debug=2):
+    ret, game = check_valid_ft(query, target, info, W, unary, debug)
     return query, target, info, W, unary, ret, game
 
 def main():            
@@ -206,14 +206,17 @@ def main():
     #with 1oM: ../Data_raw/one_of_many/
     argparser.add_argument("--hidden_size", type=int, default=128, help="width of hidden layers") 
     argparser.add_argument("--nblocks", type=int, default=5, help="number of blocks of 2 layers in ResNet") 
-    argparser.add_argument("--epoch_max", type=int, default=200, help="maximum number of epochs") 
     argparser.add_argument("--lr", type=float, default=0.001, help="learning rate") 
     argparser.add_argument("--weight_decay", type=float, default=0, help="weight_decay") 
     argparser.add_argument("--reg_term", type=float, default=0, help="L1 regularization on costs")
     argparser.add_argument("--reg_term_unary", type=float, default=0, help="L1 regularization on unary")
     argparser.add_argument("--unary", type=int, default=1, help="Use unary costs")
     argparser.add_argument("--k", type=int, default=40, help="E-PLL parameter") 
+    argparser.add_argument("--order", type=int, default=2, help="order of the PLL parameter ( mask width )")  # mask width
+    argparser.add_argument("--nb_rand_masks", type=int, default=100, help="stochastic PLL parameter : number of random masks")  
+    argparser.add_argument("--nb_rand_tuples", type=int, default=40, help="stochastic PLL parameter : number of random tuple of values to consider")  
     argparser.add_argument("--batch_size", type=int, default=8, help="training batch size") 
+    argparser.add_argument("--epoch_max", type=int, default=200, help="maximum number of epochs") 
     argparser.add_argument("--train_size", type=int, default=1000, help="number of training samples") 
     argparser.add_argument("--valid_size", type=int, default=64, help="number of validation samples") 
     argparser.add_argument("--test_size", type=int, default=70, help="number of test samples") 
