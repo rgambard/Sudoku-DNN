@@ -70,7 +70,7 @@ def train_PLL(args, game_utils, device):
         print("EPOCH ", epoch, " on ", args.epoch_max)
             
     
-        PLL_epoch,PLL1_epoch, loss_epoch, L1_epoch, unary_L1_epoch = 0, 0, 0, 0, 0
+        PLL_epoch, loss_epoch, L1_epoch, unary_L1_epoch = 0, 0, 0, 0, 0
         model.train()
         data_iterator = game_utils.get_data() 
         grad_save = 0
@@ -86,11 +86,8 @@ def train_PLL(args, game_utils, device):
             #L1 = torch.sum(torch.abs(W)*(torch.abs(W)>3))
             unary_L1 = torch.linalg.vector_norm(unary, ord=1)
             
-            #PLL = -EPLL_utils.PLL_all(W, y_true, nb_neigh = args.k, hints_logit=unary)
-            PLL1 = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=unary, mask_width=args.order, nb_rand_masks = args.nb_rand_masks, nb_rand_tuples = args.nb_rand_tuples)
-            PLL=PLL1
+            PLL = -EPLL_utils.PLL_all2(W, y_true, nb_neigh = args.k, hints_logit=unary, mask_width=args.order, nb_rand_masks = args.nb_rand_masks, nb_rand_tuples = args.nb_rand_tuples)
             PLL_epoch += PLL.item()
-            PLL1_epoch += PLL1.item()
             unary_L1_epoch += unary_L1.item()*args.reg_term_unary
             L1_epoch += L1.item()*args.reg_term
              
@@ -98,7 +95,7 @@ def train_PLL(args, game_utils, device):
                 global W_save, grad_save,nb_save
                 print(grad)
 
-            loss = PLL1 + args.reg_term * L1 + args.reg_term_unary * unary_L1
+            loss = PLL + args.reg_term * L1 + args.reg_term_unary * unary_L1
             #unary.register_hook(funcgrad)
             loss.backward()
             optimizer.step()
@@ -125,8 +122,9 @@ def train_PLL(args, game_utils, device):
                 # print solution
                 #print(y_true[0].reshape(9,9)+1)
                 # print hints
-                #print(infos[0,:].reshape(9,9))
+                # print(infos[0,:].reshape(9,9))
                 # print various cost matrix (for sudoku)
+
                 print(target[0,:].reshape(9,9)+1)
                 print(queries[0,0,3])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
@@ -150,7 +148,7 @@ def train_PLL(args, game_utils, device):
                 
 
         scheduler.step(loss_epoch)
-        print(f'Training loss: {loss_epoch:.1f} ( =  PLL term : {PLL_epoch:.1f} + PLL1 : {PLL1_epoch:.1f} + L1 term : {L1_epoch:.1f} + unary_L1 : {unary_L1_epoch:.1f} || Testing loss = {test_loss:.1f} Testing accuracy = {test_acc}')
+        print(f'Training loss: {loss_epoch:.1f} ( =  PLL term : {PLL_epoch:.1f} + L1 term : {L1_epoch:.1f} + unary_L1 : {unary_L1_epoch:.1f} || Testing loss = {test_loss:.1f} Testing accuracy = {test_acc}')
         print("current lr", optimizer.param_groups[0]['lr'], " ( min lr", args.min_lr," )")
         print("END OF EPOCH")
 
