@@ -36,6 +36,15 @@ J'ai généralisé le code de Marianne pour que je puisse l'appliquer aux procha
 J'ai vectorisé le code de gestion des plus proches voisins.
 
 
+\section{Visual grounding}
+
+In the case of visual grounding, one possible value is added to the graphical model that the programm is supposed to approximate, in addition to 1,2,..,9. This value mean "there was an indice here", and all the solutions given to the PLL are twisted so that this value is in place of the hint previously here. 
+
+This effectively prevents grounding, as the NN can no longer help himself with these hints in order to learn the digits.
+
+In this case, just adding leNet output as unary costs no longer helps, as there would be no usefull gradients on these values. Instead, lenet input is given as a feature to the NN, in addition to the other informations.
+
+It can be observed that lenet learns a permutation of the digits.
 
 
 
