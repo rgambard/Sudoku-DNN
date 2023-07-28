@@ -70,7 +70,7 @@ def train_PLL(args, game_utils, device):
         print("EPOCH ", epoch, " on ", args.epoch_max)
             
     
-        PLL_epoch, loss_epoch, L1_epoch, unary_L1_epoch = 0, 0, 0, 0, 0
+        PLL_epoch, loss_epoch, L1_epoch, unary_L1_epoch = 0, 0, 0, 0
         model.train()
         data_iterator = game_utils.get_data() 
         grad_save = 0
