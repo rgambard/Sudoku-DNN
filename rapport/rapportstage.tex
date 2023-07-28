@@ -1,0 +1,147 @@
+\documentclass[11 pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{bbold}
+\usepackage{algorithm}
+\usepackage{amsmath, amssymb}
+\usepackage{dsfont}
+\usepackage{algpseudocodex}
+\begin{document}
+\newtheorem{theorem}{Theorem}
+\title{rapport de Stage}
+\date{2023\\ Juillet}
+\author{Romain Gambardella}
+\maketitle
+\section{Réalisations}
+
+J'ai commencé par créer une base de donnée sur le jeu du Futoshiki et faire fonctionner le Futoshiki avec l'EPLL ( avant le début du stage ).
+
+En fait, après le début du stage je me suis rendu compte qu'il y avait plusieurs comportements bizarres : 
+\begin{enumerate}
+	\item un gradient était toujours nul lorsqu'il y avait une inégalité
+	\item des termes négatifs apparaissaient dans les matrices de coûts des inégalitées, ce qui posait de gros problèmes à toulbar pour la résolution
+\end{enumerate}
+Le point 1) a été expliquée par l'expression du gradient : 
+pour $i > j $ \\
+$\frac{\partial l_{PL}(n, \theta )}{\partial \theta_{ij}[v_i,v_j]} = 2 \times \mathbb{1}(y_i = v_i, y_j = v_j) - \mathbb{P}(y_i=v_i) \mathbb{1}(y_j = v_j ) -   \mathbb{P}(y_j=v_j) \mathbb{1}(y_i = v_i ) $
+Dans le cas où les cases i et j ne prennent jamais les valeurs $v_i$ et $v_j$, le gradient est toujours nul.
+
+J'ai essayé plusieurs méthodes pour compenser ce problème : 
+\begin{enumerate}
+	\item dans le cas du Sudoku, ajouter des termes unaires ne fonctionne pas car les termes unaires ne fonctionnent pas bien, à cause de la superposition des contraintes
+	\item rajouter du "bruit" casse complètement la PLL.
+	\item implementer une PLL stochastique à l'ordre 2 ( et à l'odre n ) vectorisée ( fonctionne ) 
+\end{enumerate}
+
+J'ai généralisé le code de Marianne pour que je puisse l'appliquer aux prochains problèmes plus facilement ( par exemple le grounding ) -> le code marche maintenant sur une version plus complexe du visual sudoku, sans les indices.
+J'ai vectorisé le code de gestion des plus proches voisins.
+
+
+
+
+
+\section{PLL stochastique}
+\begin{algorithm}
+\caption{PLL stochastique}\label{alg:pll}
+\begin{algorithmic}
+\Require $\theta '$ le modèle actuel 
+\Require $neighbours$ une fonction stochastique qui à x associe un ensemble d'ensemble de voisins ( dans le cas de la PLL à l'ordre 1, neighbours est déterministe et correspond l'ensemble des  $V_i$ tels que $V_i = \{y \text{ tel que $x$ et $y$ coincident partout sauf à l'indice $i$}\}$
+\Function{PLL}{x}
+\State $pll \gets 1$
+\State $N \gets neighbours(x) $
+\ForAll{$N_i \in N$}
+\State $proba \gets \mathbb{P}_{\theta '} (X=x \mid X \in N_i)$  
+\EndFor
+\Return $pll$
+\EndFunction
+\While 1
+\State $x \gets$ une réalisation de $\theta$
+\State $pll \gets PLL(x)$
+\State $\theta ' \gets update(\theta ', -log(PLL))$
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+\begin{algorithm}
+\caption{Fonction neighbours pour la PLL d'ordre 2 stochastique}\label{alg:neig2}
+\begin{algorithmic}
+	\Require $N_{masks}$ le nombre de couple d'indices à générer ( $Card(N) = N_{masks} $)
+	\Require $N_{2-uplets}$ le nombre de 2-uplets à étudier sur ces indices\\ ( $ N_{2-uplets} = Card(N_i) $)
+\Function{neighbours}{x}
+\State $masks \gets  \{ N_{masks} \text{ 2-tuples d'indices aléatoires} \}$
+\State $N \gets \{\}$
+\ForAll{ $n_{mask} \in 0...N_{masks}$}
+\State $G \gets \{ y \in \Omega \text{ tels que } y \neq x, y_i = x_i \forall i \notin masks[n_{mask}] \}$
+\State $N_{n_{mask}} \gets \{choisir N_{2-uplets}\; y\; dans \; G\} \cup \{x\}$
+\State ajouter $N_{n_{mask}}$ à N
+\EndFor
+\Return $N$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+
+\subsection{Cohérence de la PLL d'odre 2 stochastique}
+Let $\theta'$ be the computed model and $\theta$ the observed model. Let $\Omega_x$ denote all the possible observations.
+
+\quad
+
+Let  $ PLL(\theta')_m)$ be the value of the PLL averaged over m random samples ( observations ) $X_1,...,X_m$ i.i.d that follows the distribution of $\theta$, that is : 
+
+\quad
+
+$PLL(\theta')_m = \sum_{n=0}^{m} PLL(X_n) $
+
+\quad
+
+We denote the random neighbourhood used to compute the stochastic $PLL(X_i)$ by $N(X_i)$.
+
+\begin{theorem}
+Let N be the random fonction used to compute the stochastic PLL.\\
+Suppose that $\mathbb{P}_{}(N(X) = n  \mid X = x) = cte(n), \; \forall  \; n \in \mathcal{P}(\Omega_x)  \; and \; \forall x \in n$
+Then : 
+\begin{enumerate}
+	\item $ PLL(\theta')_m $ converges when m tends to $\infty$ to a number, that we call $PLL(\theta')$.
+	\item PLL($\theta'$) is minimum at $\theta' = \theta$.
+\end{enumerate}
+
+\end{theorem}
+
+\quad 
+
+We first give another expression for $PLL(\theta')_m$:
+
+\quad
+
+
+$PLL(\theta')_m = \frac{1}{m} \sum_{n=1}^{m} PLL(X_n)\\
+		= \frac{1}{m} \sum_{n=1}^{\infty} \sum_{n \in N(X_i)}  \mathbb{P}_{\theta '} (Y=X_i \mid Y \in n) \\
+		= \frac{1}{m} \sum_{n=1}^{\infty} \sum_{x \in \Omega_x} \sum_{n \in \mathcal{P}(\Omega_x)} \mathbb{1}(X_n = x, n = N(X_n) ) \mathbb{P}_{\theta '} (Y=x \mid Y \in n)
+		$
+
+\quad
+
+Reordering the sums, we get: \\
+$PLL(\theta')_m \\
+		= \frac{1}{m} \sum_{n \in \mathcal{P}(\Omega_x)} \sum_{x \in \Omega_x} \sum_{n=1}^{\infty} \mathbb{1}(X_n = x, n = N(X_n) ) \mathbb{P}_{\theta '} (Y=x \mid Y \in n)
+	\\	\to \sum_{n \in \mathcal{P}(\Omega_x)} \sum_{x \in \Omega_x} \mathbb{P}_d(X = x, n = N(X) ) \mathbb{P}_{\theta '} (Y=x \mid Y \in n)
+		$
+		
+		by the law of large numbers, where $\mathbb{P}_d$ is the joint probability distribution of X, an input sample, and N(X).
+
+		We have also : $\mathbb{P}_d(X = x, N(X) = n) = \mathbb{P}_d(X = x) \mathbb{P}_d(N(X) = n \mid X = x)  \\
+		= \mathbb{P}_d(X \in n)  \mathbb{P}_d(X = x \mid X \in n)  \mathbb{P}_d(N(X) = n \mid X = x)  \\
+		=  \mathbb{P}_{\theta}(X = x \mid X \in n) \times K(n)  \\
+		$
+
+		where $K(n)$ does not depend on X by assumption.
+
+		We hence get : \\
+		$ PLL(\theta')  =  \\
+		\sum_{n \in \mathcal{P}(\Omega_x)} K(n) \sum_{x \in \Omega_x} \mathbb{P}_{\theta}(X = x \mid X \in n ) log (\mathbb{P}_{\theta '} (Y=x \mid Y \in n))
+$
+
+Which is minimum for $\theta' = \theta$
+
+
+We immediatly deduce from this that the stochastic PLL of order 2 previously mentionned is indeed minimum at $\theta' = \theta$
+\end{document}
