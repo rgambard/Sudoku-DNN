@@ -106,6 +106,7 @@ def train_PLL(args, game_utils, device):
         optimizer.zero_grad()
 
         test_loss = 0
+        test_acc = 0
         # VALIDATION
         data_iterator = game_utils.get_data(validation=True) 
         for batch_idx in range(args.valid_size): 
@@ -113,9 +114,11 @@ def train_PLL(args, game_utils, device):
             NN_input = queries.to(device)  # bs, nb_var, nb_var, nb_feature
             W, unary = model(NN_input, device, unary = args.unary)
             y_true = target.type(torch.LongTensor).to(device) #bs,nb_var
-            PLL = -EPLL_utils.PLL_all2(W, y_true, hints_logit = unary)
+            acc, PLL = EPLL_utils.PLL_all2(W, y_true, hints_logit = unary, val=True, mask_width=args.order, nb_rand_masks = args.nb_rand_masks, nb_rand_tuples = args.nb_rand_tuples)
+            PLL = -PLL
             loss = PLL #+ args.reg_term * L1
             test_loss += loss.item()
+            test_acc += loss.item()
             if(batch_idx == 0 and args.debug>0):
                 print("DEBUG")
                 
@@ -147,9 +150,10 @@ def train_PLL(args, game_utils, device):
                 
 
         scheduler.step(loss_epoch)
-        print(f'Training loss: {loss_epoch:.1f} ( =  PLL term : {PLL_epoch:.1f} + PLL1 : {PLL1_epoch:.1f} + L1 term : {L1_epoch:.1f} + unary_L1 : {unary_L1_epoch:.1f} || Testing loss = {test_loss:.1f}')
+        print(f'Training loss: {loss_epoch:.1f} ( =  PLL term : {PLL_epoch:.1f} + PLL1 : {PLL1_epoch:.1f} + L1 term : {L1_epoch:.1f} + unary_L1 : {unary_L1_epoch:.1f} || Testing loss = {test_loss:.1f} Testing accuracy = {test_acc}')
         print("current lr", optimizer.param_groups[0]['lr'], " ( min lr", args.min_lr," )")
         print("END OF EPOCH")
+
         if(optimizer.param_groups[0]['lr']<args.min_lr):
             print("lr is too small, stopping training")
             break
