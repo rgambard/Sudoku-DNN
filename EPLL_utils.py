@@ -54,7 +54,7 @@ def get_indexes(y_mod, nb_val,  masks, rand_y, masks_complementary, masks_d2=Non
     indexes[:,:,:,:,:,0] = masks[:,:,None,:,None]
     indexes[:,:,:,:,:,1] = masks_complementary_d2[:,:,None,None,:]
     indexes[:,:,:,:,:,2] = rand_y[:,:,:,:,None]
-    indexes[:,:,:,:,:,3] = y_true[torch.arange(bs, device = device)[:,None,None,None,None],torch.arange(nb_masks, device = device)[None,:,None,None,None],masks_complementary[:,:,None,None,:]]
+    indexes[:,:,:,:,:,3] = y_mod[torch.arange(bs, device = device)[:,None,None,None,None],torch.arange(nb_masks, device = device)[None,:,None,None,None],masks_complementary[:,:,None,None,:]]
     non_joint_indexes = indexes.reshape((bs,nb_masks,nb_rand_y,-1,4))
 
     # then we compute the joint indexes
