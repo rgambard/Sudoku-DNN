@@ -33,6 +33,12 @@ class DataIterable:
 class Futoshi_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 100, batch_size = 10, path_to_data = "databases/",device = "cpu" ):
         file = open(path_to_data+"futoshi.pkl",'rb')
+
+        # info = { number of variables in the problem, number of values these variables can take, number of features that are fed to the nn }
+        # queries = np array of size (n_samples, n_var,n_var,n_infos_given_to_nn) ( fed to the nn )
+        # target set = np array of size (n_samples, n_var) giving sample solutions 
+
+
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, self.nb_features = info
         self.queries = torch.Tensor(queries)
@@ -107,26 +113,6 @@ class Futoshi_utils:
             print(fut)
 
         return valid, fut
-    
-    @staticmethod 
-    def check_valid(query, target, info, W, unaryb =None, debug=1):
-        grid_size = W.shape[3]
-        sudt = Sudoku.Sudoku(grid_size)
-        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
-
-        sud = Sudoku.Sudoku(grid_size)
-        sud.solve(W, unaryb, debug = (debug>1))
-        if debug>=1:
-            print("SOLVER RETURNED")
-            print("nonzero costs : ", W.nonzero()[0].shape[0])
-            print("target cost : ",sudt.get_cost(W,unaryb))
-            #return False, sudt
-            print(sudt)
-            print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
-            print(sud)
-        return valid, sud
-
-
 
 class Sudoku_utils:
     def __init__(self,  train_size = 500, validation_size = 100, test_size = 100, batch_size = 10, path_to_data = "databases/", device = "cpu" ):
@@ -203,88 +189,6 @@ class Sudoku_utils:
             print(sud)
         return valid, sud
 
-"""
-class Sudoku_grounding_utils:
-    def __init__(self,  train_size = 500, validation_size = 100, test_size = 80, batch_size = 10, path_to_data = "databases/", device = "cpu"):
-        file = open(path_to_data+"sudoku.pkl",'rb')
-        info, queries, targets=pickle.load(file)
-        self.nb_var, self.nb_val, nb_features = info
-        shuffle_index = torch.randperm(queries.shape[0])
-        self.queries = torch.Tensor(queries)[shuffle_index]
-        self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
-
-
-
-        self.nb_features = nb_features+2 # we also give to the nn the values of known digits, else 0
-        self.batch_size = batch_size
-        self.train_size = train_size
-        self.validation_size = validation_size
-        self.test_size = test_size
-        
-
-        grid_size = self.nb_val
-        features = np.zeros((grid_size**2, grid_size**2, nb_features+2))
-        li = np.linspace(0,1,grid_size)
-        for x in range(grid_size):
-            for y in range(grid_size):
-                i=y*grid_size+x
-                for x1 in range(grid_size):
-                    for y1 in range(grid_size):
-                        j=y1*grid_size+x1
-                        features[i,j,0]=li[y]
-                        features[i,j,1]=li[x]
-                        features[i,j,2]=li[y1]
-                        features[i,j,3]=li[x1]
-        self.features = torch.Tensor(features)
-
-    def get_data(self, validation = False, test = False):
-        queries = None
-        targets = None
-        train_size = self.train_size
-        test_size = self.test_size
-        validation_size = self.validation_size
-        batch_size = self.batch_size
-
-        if validation:
-            queries = self.queries[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
-            targets = self.targets[train_size*batch_size:train_size*batch_size+validation_size*batch_size]
-        elif test:
-            queries = self.queries[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
-            targets = self.targets[train_size*batch_size+validation_size*batch_size:train_size*batch_size+validation_size*batch_size+test_size*batch_size]
-        else:
-            queries = self.queries[:train_size*batch_size]
-            targets = self.targets[:train_size*batch_size]
-
-        return DataIterable(queries,targets,self.batch_size, queries_transform_ft = self.make_features)
-
-
-
-    def make_features(self,infos):
-        nfeatures =  self.features.unsqueeze(0).repeat(infos.shape[0],1,1,1);
-        nfeatures[:,:,:,5]=infos.reshape(infos.shape[0],-1).unsqueeze(1)/9
-        nfeatures[:,:,:,4]=infos.reshape(infos.shape[0],-1).unsqueeze(2)/9
-        return nfeatures
-
-    @staticmethod 
-    def check_valid(query, target, info, W, unaryb =None, debug=1):
-        grid_size = W.shape[3]
-        sudt = Sudoku.Sudoku(grid_size)
-        sudt.grid = target.reshape(grid_size,grid_size).astype(np.int8)+1
-
-        sud = Sudoku.Sudoku(grid_size)
-        sud.solve(W, unaryb, debug = (debug>1))
-        if debug>=1:
-            print("SOLVER RETURNED")
-            print("nonzero costs : ", W.nonzero()[0].shape[0])
-            print("target cost : ",sudt.get_cost(W,unaryb))
-            #return False, sudt
-            print(sudt)
-            print("solved valid ", valid, " cost : ", sud.get_cost(W,unaryb))
-            print(sud)
-        return valid, sud
-"""
-
-
 
 
 class Sudoku_hints_utils:
@@ -292,15 +196,10 @@ class Sudoku_hints_utils:
         file = open(path_to_data+"sudoku.pkl",'rb')
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, nb_features = info
-        #self.nb_val = self.nb_val+1
         shuffle_index = torch.randperm(queries.shape[0])
         self.queries = torch.Tensor(queries)[shuffle_index]
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
-        # on cache les indices
-        #self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val
 
-
-        #self.nb_features = nb_features+2*(nb_val-1) # we also give to the nn the values of known digits, else 0
         self.nb_features = nb_features+2*self.nb_val # we also give to the nn the values of known digits, else 0
         self.batch_size = batch_size
         self.train_size = train_size
@@ -398,8 +297,6 @@ class Sudoku_grounding_utils:
         self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val-1
         self.device = device
 
-
-        #self.nb_features = nb_features+2*(nb_val-1) # we also give to the nn the values of known digits, else 0
         self.batch_size = batch_size
         self.train_size = train_size
         self.validation_size = validation_size
@@ -485,17 +382,13 @@ class Sudoku_visual_utils:
         info, queries, targets=pickle.load(file)
         self.nb_var, self.nb_val, nb_features = info
         self.nb_features = nb_features+2*(self.nb_val+1) # we also give to the nn the probabilities of handwritten digits
-        #self.nb_val = self.nb_val+1
         shuffle_index = torch.randperm(queries.shape[0])
         queries = torch.Tensor(queries)[shuffle_index].reshape(queries.shape[0], -1).int()
         self.targets = torch.Tensor(targets-1).reshape(targets.shape[0], -1)[shuffle_index]
 
-        # on cache les indices
-        #self.targets[torch.where(self.queries.reshape(-1,self.nb_var)!=0)]=self.nb_val-1
         self.device = device
 
 
-        #self.nb_features = nb_features+2*(nb_val-1) # we also give to the nn the values of known digits, else 0
         self.batch_size = batch_size
         self.train_size = train_size
         self.validation_size = validation_size
@@ -596,7 +489,6 @@ class Sudoku_visual_utils:
             print("solved sudoku with hints is valid ?", valid)
             print(sudh)
         return valid, sud
-        #taken from https://towardsdatascience.com/implementing-yann-lecuns-lenet-5-in-pytorch-5e05a0911320
 
     def get_data(self, validation = False, test = False):
         queries = None

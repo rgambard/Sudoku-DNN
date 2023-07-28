@@ -1,5 +1,13 @@
 # Code du stage
 
+## Installation 
+
+Clone the repository and install the requirements ( in a virtual env ) 
+
+```
+python -m pip install requirements.txt
+```
+
 ## Exemples de commandes
 Pour effectuer le test avec le sudoku symbolique, en mode grounding : 
 

@@ -20,11 +20,7 @@ W_save = 0
 nb_save= 0
 def train_PLL(args, game_utils, device):
     print("\n \n \n TRAINING")
-    # info = { number of variables in the problem, number of values these variables can take, number of features that are fed to the nn }
-    # queries = np array of size (n_samples, n_var,n_var,n_infos_given_to_nn) ( fed to the nn )
-    # target set = np array of size (n_samples, n_var) giving sample solutions 
-
-
+    
     #### MODEL ####
             #create model
     model = Net.Net(game_utils.nb_var, game_utils.nb_val, game_utils.nb_features,
@@ -100,41 +96,15 @@ def train_PLL(args, game_utils, device):
              
             def funcgrad(grad):
                 global W_save, grad_save,nb_save
-                #W_save += np.abs(W[0,torch.where(data[:,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].cpu().detach().numpy()).sum(axis=0) ; 
-                
-                #grad_save += np.abs(grad[:,[0,1],[2,3]].cpu().detach().numpy()).sum(axis=1).sum(axis=0);
-                #grad_int = grad[0,torch.where(queries[0,0,:,4]==1)[0],torch.where(queries[0,0,:,4]==1)[1]].cpu().detach().numpy().sum(axis=0)
-                #grad_int = grad[0,0,1].cpu().detach().numpy();
-                #grad_int1 = grad[0,torch.where(queries[0,:,:,4]==-1)[1],torch.where(queries[0,:,:,4]==-1)[0]].cpu().detach().numpy().sum(axis=0).T
-                #grad_int1 = grad[0,1,0].cpu().detach().numpy().T;
-                """
-                if queries[0,0,0,4]==1.0:
-                    W_save += W[0,0,1]
-                    grad_int = grad[0,0,:9].cpu().detach().numpy().sum(axis=0)
-                    grad_save += grad_int#+grad_int1
-                    """
-                grad_save+=grad.detach().cpu().numpy()
-                #nb_save += (y_true[0,0].detach().cpu()[None]==torch.arange(9)[:])
-                #print(grad_save.round(4))
-                #print(W[0,8,9].cpu().detach().numpy().round(1))
-                #nb_sav += (y_true[1]==0)
+                print(grad)
 
             loss = PLL1 + args.reg_term * L1 + args.reg_term_unary * unary_L1
-            #W.register_hook(lambda grad: print(" gradient !!!  \n",W[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]].round(), "\n" , grad[0,torch.where(data[0,:,:,4]==-1)[0],torch.where(data[0,:,:,4]==-1)[1]])) 
-            #if batch_idx%200 == 1: 
-            #    unary.register_hook(lambda grad: print(grad[0,0],"\n", unary[0,0]))
             #unary.register_hook(funcgrad)
             loss.backward()
             optimizer.step()
-            #if batch_idx%200 == 2: 
-            #    print(unary[0,0])
             loss_epoch += loss.item()
         optimizer.zero_grad()
-        #print(W_save)
-        #print(grad_save[0,0].round(2))
-        #print(nb_save)
-        #grad_save *= 0
-        #print(nb_save)
+
         test_loss = 0
         # VALIDATION
         data_iterator = game_utils.get_data(validation=True) 
@@ -149,8 +119,11 @@ def train_PLL(args, game_utils, device):
             if(batch_idx == 0 and args.debug>0):
                 print("DEBUG")
                 
+                # print solution
                 #print(y_true[0].reshape(9,9)+1)
-                print(infos[0,:].reshape(9,9))
+                # print hints
+                #print(infos[0,:].reshape(9,9))
+                # print various cost matrix (for sudoku)
                 print(target[0,:].reshape(9,9)+1)
                 print(queries[0,0,3])
                 print(W[0,3,4].cpu().detach().numpy().round(2))
@@ -162,7 +135,9 @@ def train_PLL(args, game_utils, device):
                 #print(np.trunc(unary[0,8].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,0].cpu().detach().numpy()))
                 #print(np.trunc(unary[0,1].cpu().detach().numpy()))
-                #print("FINdebug")
+                print("FINdebug")
+
+                # dump the problem to disk, so that it can be solved using cmd
                 Wb = W[0].cpu().detach().numpy()
                 unaryd = unary[0].cpu().detach().numpy()
                 unaryd = unaryd-unaryd.min(axis=1)[:,None]
@@ -185,12 +160,11 @@ def train_PLL(args, game_utils, device):
 def test(args, model, game_utils, device):
     print("\n \n \n TESTING \n")
     print("Test in progress (can take several minutes)")
-    # query = np array of size (n_samples, n_var,n_var,n_infos) (given to the function make_feature which returns the features given to the nn for each pair of variables
-    # and target set = np array of size (n_samples, n_var) giving sample solutions 
     
     results = []
             
     print("Starting parallel processes for solving: ")
+    # we parallelize the resolution
     with concurrent.futures.ProcessPoolExecutor() as executor:
         processes = []
         data_iterator = game_utils.get_data(test=True) 
@@ -207,14 +181,11 @@ def test(args, model, game_utils, device):
             Wb = W[0].cpu().detach().numpy()
             unaryd = unary[0].cpu().detach().numpy()
             Wb = Wb*(Wb>args.threshold)
-            #solve_parallel(game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
             proc = executor.submit(solve_parallel,game_utils.check_valid,queries[0].cpu().detach().numpy(),target[0].cpu().detach().numpy(), infos[0].cpu().detach().numpy() ,Wb, unaryd)
             processes.append(proc)
         print(" Collecting results ( be patient )")
         for process_idx in tqdm(range(args.test_size)):
             query, target, info, W, unary, res, game = processes[process_idx].result()
-            if not res:
-                breakpoint()
             results.append(res)
 
     result = np.array(results)
@@ -290,7 +261,8 @@ def main():
 
 
     torch.manual_seed(args.seed)
-        ### TRAINING ###
+
+    ### TRAINING ###
     if torch.cuda.is_available():
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)
