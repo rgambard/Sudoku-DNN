@@ -5,7 +5,7 @@
 Clone the repository and install the requirements ( in a virtual env ) 
 
 ```
-python -m pip install requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Usage 
